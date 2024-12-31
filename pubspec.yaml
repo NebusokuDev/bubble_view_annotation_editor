@@ -4,16 +4,20 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.7.0-207.0.dev
+  sdk: ^3.6.0
 dependencies:
   flutter:
     sdk: flutter
   go_router:
+  file_picker:
+  http:
+  path:
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints:
+  sqflite:
 
 flutter:
   uses-material-design: true
