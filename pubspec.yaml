@@ -10,6 +10,9 @@ dependencies:
     sdk: flutter
   go_router:
   file_picker:
+  sqlite3:
+  font_awesome_flutter:
+  shared_preferences:
   http:
   path:
 
@@ -17,7 +20,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints:
-  sqflite:
   shared_preferences:
 
 flutter:

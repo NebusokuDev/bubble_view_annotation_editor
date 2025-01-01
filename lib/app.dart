@@ -9,11 +9,13 @@ class AnnotationApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        title: 'open image annotator',
-        theme: Brightness.light.theme(),
-        darkTheme: Brightness.dark.theme(),
-        routerConfig: appRouter);
+      debugShowCheckedModeBanner: false,
+      title: 'open image annotator',
+      theme: Brightness.light.theme(),
+      darkTheme: Brightness.dark.theme(),
+      themeMode: ThemeMode.light,
+      routerConfig: appRouter,
+    );
   }
 }
 
