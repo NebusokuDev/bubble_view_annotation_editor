@@ -9,11 +9,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String _selectedLanguage = 'English';
-  ThemeMode _themeMode = ThemeMode.system;
-  int _maxClicks = 10;
-  double _circleRange = 50.0;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,12 +16,33 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: BackButton(
           onPressed: () => context.go("/"),
         ),
-        title: Text('Settings'),
+        actions: [
+          CircleAvatar(
+            child: GestureDetector(
+              onTap: () {
+                context.go("/auth");
+              },
+            ),
+          ),
+          SizedBox(
+            width: 10,
+          ),
+        ],
+        title: Text('SETTINGS'),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(),
+        padding: const EdgeInsets.symmetric(horizontal: 128),
+        child: Card(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text("テーマモードの切替"),
+              )
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -13,7 +14,12 @@ class _AuthPageState extends State<AuthPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: createAccount ? CreateAccountBody() : LoginBody(),
+      appBar: AppBar(
+        leading: BackButton(
+          onPressed: () => context.go("/settings"),
+        ),
+      ),
+      body: Center(child: createAccount ? CreateAccountBody() : LoginBody()),
     );
   }
 }
@@ -23,7 +29,7 @@ class LoginBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Card();
   }
 }
 
@@ -32,7 +38,6 @@ class CreateAccountBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
+    return Card();
   }
 }

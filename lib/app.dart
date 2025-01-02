@@ -1,3 +1,4 @@
+import 'package:bubble_view_annotation_editor/features/authentication/auth_page.dart';
 import 'package:bubble_view_annotation_editor/features/editor/editor_page.dart';
 import 'package:bubble_view_annotation_editor/features/settings/settings_page.dart';
 import 'package:flutter/material.dart';
@@ -35,5 +36,6 @@ final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(path: "/", builder: (context, state) => EditorPage()),
     GoRoute(path: "/settings", builder: (context, state) => SettingsPage()),
+    GoRoute(path: "/auth", builder: (context, state) => AuthPage()),
   ],
 );

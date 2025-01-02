@@ -147,22 +147,41 @@ class _EditorPageState extends State<EditorPage> {
           controller: _controller,
         ),
         drawer: Drawer(
-          child: Hierarchy(
-            annotations: _annotations,
-            selectIndex: _currentIndex,
-            onSelection: _changeImageAt,
-            onPickImage: _pickImage,
-            onPickFolder: _pickFolder,
-            onDelete: _deleteImage,
+          child: Column(
+            children: [
+              Expanded(child: Inspector()),
+              Expanded(
+                flex: 2,
+                child: Hierarchy(
+                  annotations: _annotations,
+                  selectIndex: _currentIndex,
+                  onSelection: _changeImageAt,
+                  onPickImage: _pickImage,
+                  onPickFolder: _pickFolder,
+                  onDelete: _deleteImage,
+                ),
+              ),
+            ],
           ),
         ),
-        body: EditorBody(
-          onImageOpen: _pickImage,
-          currentIndex: _currentIndex,
-          annotations: _annotations,
-          onNextImage: _nextImage,
-          onPrevImage: _previousImage,
-          onTap: _onImageTap,
+        body: Row(
+          children: [
+            Toolbar(
+              toolSelectIndex: _toolSelectionIndex,
+              onToolSelected: _selectTool,
+            ),
+            Expanded(
+              flex: 8,
+              child: EditorBody(
+                onImageOpen: _pickImage,
+                currentIndex: _currentIndex,
+                annotations: _annotations,
+                onNextImage: _nextImage,
+                onPrevImage: _previousImage,
+                onTap: _onImageTap,
+              ),
+            ),
+          ],
         ),
       ),
       1100: Scaffold(
@@ -198,13 +217,21 @@ class _EditorPageState extends State<EditorPage> {
               elevation: 5,
               child: SizedBox(
                 width: 300,
-                child: Hierarchy(
-                  annotations: _annotations,
-                  selectIndex: _currentIndex,
-                  onSelection: _changeImageAt,
-                  onPickImage: _pickImage,
-                  onPickFolder: _pickFolder,
-                  onDelete: _deleteImage,
+                child: Column(
+                  children: [
+                    Expanded(child: Inspector()),
+                    Expanded(
+                      flex: 2,
+                      child: Hierarchy(
+                        annotations: _annotations,
+                        selectIndex: _currentIndex,
+                        onSelection: _changeImageAt,
+                        onPickImage: _pickImage,
+                        onPickFolder: _pickFolder,
+                        onDelete: _deleteImage,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
