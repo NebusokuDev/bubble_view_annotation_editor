@@ -1,10 +1,11 @@
 import 'dart:io';
 
-import 'package:bubble_view_annotation_editor/components/editable_title_field.dart';
+import 'package:bubble_view_annotation_editor/components/folder_tile.dart';
 import 'package:bubble_view_annotation_editor/components/responsive_layout.dart';
 import 'package:bubble_view_annotation_editor/core/annotations.dart';
 import 'package:bubble_view_annotation_editor/features/editor/blur_image.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -14,16 +15,20 @@ import 'package:undo/undo.dart';
 
 class EditorState extends ChangeNotifier {
   final ChangeStack _history = ChangeStack();
-  final List<AnnotationData> _annotations = [];
+
+  Project? project;
+
   int _currentImageIndex = 0;
   int _toolSelectionIndex = 0;
   double _blurAmount = 10;
   bool enableBlur = true;
 
-  List<AnnotationData> get annotations => _annotations;
+  List<AnnotationData>? get annotations => project?.annotations;
 
   AnnotationData? get currentEditing {
-    return _annotations.isEmpty ? null : _annotations[_currentImageIndex];
+    return project?.annotations.isEmpty ?? true
+        ? null
+        : project?.annotations[_currentImageIndex];
   }
 
   int get currentImage => _currentImageIndex;
@@ -37,14 +42,19 @@ class EditorState extends ChangeNotifier {
   final TextEditingController titleController =
       TextEditingController(text: "undefined");
 
-  Future createProject() async {}
+  void createProject({String name = "undefined"}) {
+    project = Project();
+    notifyListeners();
+  }
 
-  Future pickProject() async {
+  Future openProject() async {
     final selectFiles = await FilePicker.platform.pickFiles(
-      allowedExtensions: ["anno"],
+      allowedExtensions: ["anno", "json", "csv"],
       type: FileType.custom,
     );
     if (selectFiles == null) return;
+
+    project = Project();
   }
 
   Future saveProject() async {
@@ -90,19 +100,22 @@ class EditorState extends ChangeNotifier {
   void addAnnotation(List<File>? newImages) {
     if (newImages == null) return;
 
-    _annotations.addAll(newImages.map((img) => AnnotationData(image: img)));
+    project?.annotations
+        .addAll(newImages.map((img) => AnnotationData(image: img)));
 
     notifyListeners();
   }
 
   void deleteImage() {
-    if (_currentImageIndex >= 0 && _currentImageIndex < _annotations.length) {
-      _annotations.removeAt(_currentImageIndex);
+    if (project == null) return;
+    if (_currentImageIndex >= 0 &&
+        _currentImageIndex < project!.annotations.length) {
+      project?.annotations.removeAt(_currentImageIndex);
 
-      if (_currentImageIndex >= _annotations.length &&
-          _annotations.isNotEmpty) {
-        _currentImageIndex = _annotations.length - 1;
-      } else if (_annotations.isEmpty) {
+      if (_currentImageIndex >= project!.annotations.length &&
+          project!.annotations.isNotEmpty) {
+        _currentImageIndex = project!.annotations.length - 1;
+      } else if (project!.annotations.isEmpty) {
         _currentImageIndex = 0;
       }
 
@@ -116,25 +129,29 @@ class EditorState extends ChangeNotifier {
   }
 
   void nextImage() {
-    final nextIndex =
-        (_currentImageIndex + 1 + _annotations.length) % _annotations.length;
+    if (project == null) return;
+    final nextIndex = (_currentImageIndex + 1 + project!.annotations.length) %
+        project!.annotations.length;
 
     changeImageAt(nextIndex);
     notifyListeners();
   }
 
   void previousImage() {
-    final nextIndex =
-        (_currentImageIndex - 1 + _annotations.length) % _annotations.length;
+    if (project == null) return;
+    final nextIndex = (_currentImageIndex - 1 + project!.annotations.length) %
+        project!.annotations.length;
     changeImageAt(nextIndex);
     notifyListeners();
   }
 
   void addSaliencyPoint(TapDownDetails details) {
-    _annotations[_currentImageIndex]
-        .bubbleViewClickPoints
+    project?.annotations[_currentImageIndex].bubbleViewClickPoints
         .add(details.localPosition);
-
+    if (kDebugMode) {
+      print(details.localPosition);
+      print(project?.annotations[currentImage].bubbleViewClickPoints.length);
+    }
     notifyListeners();
   }
 
@@ -191,12 +208,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       0: Scaffold(
         appBar: EditorAppBar(
           onProjectCreate: ref.read(editorStateProvider).createProject,
-          onProjectOpen: ref.read(editorStateProvider).pickProject,
+          onProjectOpen: ref.read(editorStateProvider).openProject,
           onProjectSave: ref.read(editorStateProvider).saveProject,
           onUndo: ref.read(editorStateProvider).undo,
           onRedo: ref.read(editorStateProvider).redo,
           onSetting: () => context.go("/settings"),
           controller: ref.watch(editorStateProvider).titleController,
+          projectName: ref.watch(editorStateProvider).project?.name ?? "",
         ),
         drawer: Drawer(
           child: Column(
@@ -245,12 +263,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       1100: Scaffold(
         appBar: EditorAppBar(
           onProjectCreate: ref.read(editorStateProvider).createProject,
-          onProjectOpen: ref.read(editorStateProvider).pickProject,
+          onProjectOpen: ref.read(editorStateProvider).openProject,
           onProjectSave: ref.read(editorStateProvider).saveProject,
           onUndo: ref.read(editorStateProvider).undo,
           onRedo: ref.read(editorStateProvider).redo,
           onSetting: () => context.go("/settings"),
           controller: ref.watch(editorStateProvider).titleController,
+          projectName: ref.watch(editorStateProvider).project?.name ?? "",
         ),
         body: Row(
           children: [
@@ -317,6 +336,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onProjectCreate,
     required this.onUndo,
     required this.onRedo,
+    required this.projectName,
   });
 
   final VoidCallback onProjectCreate;
@@ -327,11 +347,12 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onRedo;
 
   final TextEditingController controller;
+  final String projectName;
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: EditableTitleField(controller: controller),
+      title: Text(projectName),
       centerTitle: true,
       actions: [
         IconButton(onPressed: onSetting, icon: Icon(Icons.settings)),
@@ -491,7 +512,7 @@ class Hierarchy extends StatelessWidget {
   final VoidCallback onPickFolder;
   final VoidCallback onDelete;
 
-  final List<AnnotationData> annotations;
+  final List<AnnotationData>? annotations;
   final int selectIndex;
 
   final void Function(int selection) onSelection;
@@ -499,22 +520,16 @@ class Hierarchy extends StatelessWidget {
   List<Widget> generateLayerList(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final style = Theme.of(context).textTheme;
-    return List<Widget>.generate(
-      annotations.length,
-      (index) => FolderTile(
-        selected: index == selectIndex,
-        selectedColor: colorScheme.primary,
-        selectedTileColor: colorScheme.primaryContainer,
-        onTap: () => onSelection(index),
-        // key: PageStorageKey(index),
-        title: Text(
-          basename(annotations[index].image.path),
-          style: style.labelMedium?.copyWith(
-            color: index == selectIndex ? colorScheme.primary : null,
-          ),
-        ),
-      ),
-    );
+    if (annotations == null) return [];
+    return List<Widget>.generate(annotations!.length, (index) {
+      final annotationData = annotations![index];
+      final selected = index == selectIndex;
+      return AnnotationTile(
+        annotationData: annotationData,
+        selected: selected,
+        onSelection: () => onSelection(index),
+      );
+    });
   }
 
   @override
@@ -552,6 +567,55 @@ class Hierarchy extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class AnnotationTile extends StatelessWidget {
+  const AnnotationTile({
+    super.key,
+    required this.annotationData,
+    required this.selected,
+    required this.onSelection,
+  });
+
+  final AnnotationData annotationData;
+  final bool selected;
+  final VoidCallback onSelection;
+
+  List<Widget> buildAnnotationList() {
+    final saliencyPoint = annotationData.bubbleViewClickPoints
+        .map((e) => ListTile(
+              title: Text("[${e.dx}, ${e.dy}]"),
+            ))
+        .toList();
+    return [
+      if (saliencyPoint.isNotEmpty)
+        ExpansionTile(
+          title: Text("Bubble View"),
+          children: saliencyPoint,
+        )
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final style = Theme.of(context).textTheme;
+
+    return FolderTile(
+      selected: selected,
+      selectedColor: colorScheme.primary,
+      selectedTileColor: colorScheme.primaryContainer,
+      onTap: onSelection,
+      // key: PageStorageKey(index),
+      title: Text(
+        basename(annotationData.image.path),
+        style: style.labelMedium?.copyWith(
+          color: selected ? colorScheme.primary : null,
+        ),
+      ),
+      children: [],
     );
   }
 }
@@ -605,7 +669,7 @@ class EditorBody extends StatelessWidget {
     required this.onTap,
   });
 
-  final List<AnnotationData> annotations;
+  final List<AnnotationData>? annotations;
   final int currentIndex;
   final VoidCallback onPickImage;
   final VoidCallback onNextImage;
@@ -626,27 +690,28 @@ class EditorBody extends StatelessWidget {
 
   Widget editLayout() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Stack(
-            fit: StackFit.expand,
-            alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              BlurImage(
-                image: annotations[currentIndex].image,
-                onTap: onTap,
-                enableBlur: false,
-                blurAmount: 5.0,
-              ),
-              Align(
-                alignment: Alignment(-0.975, 0),
+              Flexible(
                 child: IconButton.outlined(
-                  onPressed: onPrevImage,
+                  onPressed: onNextImage,
                   icon: Icon(Icons.arrow_left),
                 ),
               ),
-              Align(
-                alignment: Alignment(0.975, 0),
+              Expanded(
+                flex: 12,
+                child: BlurImage(
+                  image: annotations![currentIndex].image,
+                  onTap: onTap,
+                  enableBlur: false,
+                  blurAmount: 5.0,
+                ),
+              ),
+              Flexible(
                 child: IconButton.outlined(
                   onPressed: onNextImage,
                   icon: Icon(Icons.arrow_right),
@@ -655,65 +720,18 @@ class EditorBody extends StatelessWidget {
             ],
           ),
         ),
-        Text("${currentIndex + 1} / ${annotations.length}"),
+        Text("${currentIndex + 1} / ${annotations!.length}"),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEmpty = annotations?.isEmpty ?? true;
+
     return Container(
       color: Colors.black12,
-      child: annotations.isEmpty ? emptyLayout() : editLayout(),
-    );
-  }
-}
-
-class FolderTile extends StatefulWidget {
-  final Widget title;
-  final List<Widget>? children;
-  final VoidCallback onTap;
-  final bool? selected;
-  final Color? selectedColor;
-  final Color? selectedTileColor;
-
-  const FolderTile({
-    super.key,
-    required this.title,
-    this.children,
-    required this.onTap,
-    this.selected,
-    this.selectedColor,
-    this.selectedTileColor,
-  });
-
-  @override
-  _FolderTileState createState() => _FolderTileState();
-}
-
-class _FolderTileState extends State<FolderTile> {
-  bool _isExpanded = false;
-
-  void toggleExpand() => setState(() => _isExpanded = !_isExpanded);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ListTile(
-          selected: widget.selected ?? false,
-          onTap: widget.onTap,
-          title: widget.title,
-          trailing: widget.children?.isEmpty ?? true
-              ? null
-              : IconButton(
-                  onPressed: toggleExpand,
-                  icon:
-                      Icon(_isExpanded ? Icons.expand_more : Icons.expand_less),
-                ),
-        ),
-        if (_isExpanded) ...?widget.children,
-      ],
+      child: isEmpty ? emptyLayout() : editLayout(),
     );
   }
 }

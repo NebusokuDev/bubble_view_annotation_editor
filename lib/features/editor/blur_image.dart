@@ -35,10 +35,10 @@ class BlurImage extends StatelessWidget {
             child: ClipRect(
               child: Align(
                 alignment: Alignment.center,
-                widthFactor: 1.0, // 元画像の幅に合わせて切り取る
-                heightFactor: 1.0, // 元画像の高さに合わせて切り取る
+                widthFactor: 1.0,
+                heightFactor: 1.0,
                 child: Transform.scale(
-                  scale: 1.05, // 画像を右に移動させる
+                  scale: 1.05,
                   child: ImageFiltered(
                     imageFilter: ImageFilter.blur(
                         sigmaY: blurAmount, sigmaX: blurAmount),
@@ -52,5 +52,3 @@ class BlurImage extends StatelessWidget {
     );
   }
 }
-
-// 指定された部分のみぼかしを解除するには？
