@@ -13,22 +13,26 @@ import 'package:path/path.dart';
 import 'package:undo/undo.dart';
 
 class EditorState extends ChangeNotifier {
+  final ChangeStack _history = ChangeStack();
   final List<AnnotationData> _annotations = [];
-
-  final ChangeStack changeStack = ChangeStack();
-
   int _currentImageIndex = 0;
   int _toolSelectionIndex = 0;
-
-  int get currentImage => _currentImageIndex;
-
-  int get currentTool => _toolSelectionIndex;
+  double _blurAmount = 10;
+  bool enableBlur = true;
 
   List<AnnotationData> get annotations => _annotations;
 
   AnnotationData? get currentEditing {
     return _annotations.isEmpty ? null : _annotations[_currentImageIndex];
   }
+
+  int get currentImage => _currentImageIndex;
+
+  int get currentTool => _toolSelectionIndex;
+
+  double get blurAmount => _blurAmount;
+
+  set blurAmount(value) => _blurAmount = value;
 
   final TextEditingController titleController =
       TextEditingController(text: "undefined");
@@ -140,15 +144,15 @@ class EditorState extends ChangeNotifier {
   }
 
   void redo() {
-    if (changeStack.canRedo) {
-      changeStack.redo();
+    if (_history.canRedo) {
+      _history.redo();
     }
     notifyListeners();
   }
 
   void undo() {
-    if (changeStack.canUndo) {
-      changeStack.undo();
+    if (_history.canUndo) {
+      _history.undo();
     }
     notifyListeners();
   }
@@ -187,7 +191,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       0: Scaffold(
         appBar: EditorAppBar(
           onProjectCreate: ref.read(editorStateProvider).createProject,
-          onProjectOpen: ref.read(editorStateProvider).createProject,
+          onProjectOpen: ref.read(editorStateProvider).pickProject,
           onProjectSave: ref.read(editorStateProvider).saveProject,
           onUndo: ref.read(editorStateProvider).undo,
           onRedo: ref.read(editorStateProvider).redo,
@@ -198,12 +202,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           child: Column(
             children: [
               Expanded(
+                flex: 2,
                 child: Inspector(
                   annotationData: ref.watch(editorStateProvider).currentEditing,
                 ),
               ),
               Expanded(
-                flex: 2,
+                flex: 1,
                 child: Hierarchy(
                   annotations: ref.watch(editorStateProvider).annotations,
                   selectIndex: ref.watch(editorStateProvider).currentImage,
@@ -240,7 +245,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       1100: Scaffold(
         appBar: EditorAppBar(
           onProjectCreate: ref.read(editorStateProvider).createProject,
-          onProjectOpen: ref.read(editorStateProvider).createProject,
+          onProjectOpen: ref.read(editorStateProvider).pickProject,
           onProjectSave: ref.read(editorStateProvider).saveProject,
           onUndo: ref.read(editorStateProvider).undo,
           onRedo: ref.read(editorStateProvider).redo,
@@ -280,7 +285,6 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                       ),
                     ),
                     Expanded(
-                      flex: 2,
                       child: Hierarchy(
                         annotations: ref.watch(editorStateProvider).annotations,
                         selectIndex:
@@ -453,22 +457,19 @@ class Inspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (annotationData?.bubbleViewClickPoints.isEmpty ?? true) {
-      return Container();
-    }
+    final style = Theme.of(context).textTheme;
 
-    return ListView(
+    return ExpansionTile(
+      minTileHeight: 0,
+      tilePadding: EdgeInsets.symmetric(horizontal: 16),
+      title: Text(
+        "BubbleView",
+        style: style.labelLarge,
+      ),
       children: [
-        ExpansionTile(
-          title: Text("BubbleView"),
-          children: annotationData?.bubbleViewClickPoints.map((e) {
-                return ListTile(
-                  dense: true,
-                  title: Text("x: ${e.dx}, y: ${e.dy}"),
-                );
-              }).toList() ??
-              [],
-        ),
+        ListTile(
+          title: Text("半径", style: style.labelMedium),
+        )
       ],
     );
   }
@@ -496,7 +497,7 @@ class Hierarchy extends StatelessWidget {
 
   List<Widget> generateLayerList(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
+    final style = Theme.of(context).textTheme;
     return List<Widget>.generate(
       annotations.length,
       (index) => ListTile(
@@ -505,8 +506,16 @@ class Hierarchy extends StatelessWidget {
         selectedTileColor: colorScheme.primaryContainer,
         onTap: () => onSelection(index),
         // key: PageStorageKey(index),
-        leading: Text("$index"),
-        title: Text(basename(annotations[index].image.path)),
+        leading: Text(
+          "$index",
+          style: style.labelMedium,
+        ),
+        title: Text(
+          basename(annotations[index].image.path),
+          style: style.labelMedium?.copyWith(
+            color: index == selectIndex ? colorScheme.primary : null,
+          ),
+        ),
         minTileHeight: 30,
       ),
     );
@@ -627,7 +636,12 @@ class EditorBody extends StatelessWidget {
             fit: StackFit.expand,
             alignment: Alignment.center,
             children: [
-              BlurImage(image: annotations[currentIndex].image, onTap: onTap),
+              BlurImage(
+                image: annotations[currentIndex].image,
+                onTap: onTap,
+                enableBlur: false,
+                blurAmount: 5.0,
+              ),
               Align(
                 alignment: Alignment(-0.975, 0),
                 child: IconButton.outlined(
@@ -656,5 +670,15 @@ class EditorBody extends StatelessWidget {
       color: Colors.black12,
       child: annotations.isEmpty ? emptyLayout() : editLayout(),
     );
+  }
+}
+
+class ExpansionTile extends StatelessWidget {
+  const ExpansionTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    throw UnimplementedError();
   }
 }

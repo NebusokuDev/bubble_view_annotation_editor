@@ -14,18 +14,6 @@ class SettingsPage extends ConsumerWidget {
         leading: BackButton(
           onPressed: () => context.go("/"),
         ),
-        actions: [
-          CircleAvatar(
-            child: GestureDetector(
-              onTap: () {
-                context.go("/auth");
-              },
-            ),
-          ),
-          SizedBox(
-            width: 10,
-          ),
-        ],
         title: Text(
           '設定',
           style: textTheme.headlineSmall,
