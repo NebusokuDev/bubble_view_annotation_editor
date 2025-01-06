@@ -6,159 +6,211 @@ import 'package:bubble_view_annotation_editor/core/annotations.dart';
 import 'package:bubble_view_annotation_editor/features/editor/blur_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart';
+import 'package:undo/undo.dart';
 
-class EditorPage extends StatefulWidget {
-  const EditorPage({super.key});
-
-  @override
-  State<EditorPage> createState() => _EditorPageState();
-}
-
-class _EditorPageState extends State<EditorPage> {
+class EditorState extends ChangeNotifier {
   final List<AnnotationData> _annotations = [];
-  int _currentIndex = 0;
+
+  final ChangeStack changeStack = ChangeStack();
+
+  int _currentImageIndex = 0;
   int _toolSelectionIndex = 0;
 
-  late TextEditingController _controller;
+  int get currentImage => _currentImageIndex;
 
-  @override
-  void initState() {
-    _controller = TextEditingController(text: "Untitled");
-    super.initState();
+  int get currentTool => _toolSelectionIndex;
+
+  List<AnnotationData> get annotations => _annotations;
+
+  AnnotationData? get currentEditing {
+    return _annotations.isEmpty ? null : _annotations[_currentImageIndex];
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final TextEditingController titleController =
+      TextEditingController(text: "undefined");
 
-  Future _createProject() async {}
+  Future createProject() async {}
 
-  Future _pickProject() async {
-    final selectedFile = await FilePicker.platform.pickFiles(
+  Future pickProject() async {
+    final selectFiles = await FilePicker.platform.pickFiles(
       allowedExtensions: ["anno"],
       type: FileType.custom,
     );
+    if (selectFiles == null) return;
   }
 
-  Future _saveProject() async {
+  Future saveProject() async {
     final selectDirectory = await FilePicker.platform.saveFile(
-      fileName: "${_controller.text}.anno",
+      fileName: "${titleController.text}.anno",
       allowedExtensions: ["anno"],
       type: FileType.custom,
     );
+    if (selectDirectory == null) return;
   }
 
-  Future<void> _pickFolder() async {
+  Future<void> pickFolder() async {
     final selectedDirectory = await FilePicker.platform.getDirectoryPath();
-    if (selectedDirectory != null) {
-      final dir = Directory(selectedDirectory);
-      _addAnnotation(dir
-          .listSync()
-          .where((item) => item is File && _isImageFile(item.path))
-          .map((item) => File(item.path))
-          .toList());
-    }
+    if (selectedDirectory == null) return;
+
+    final dir = Directory(selectedDirectory);
+
+    addAnnotation(dir
+        .listSync()
+        .where((item) => item is File && isImageFile(item.path))
+        .map((item) => File(item.path))
+        .toList());
+    notifyListeners();
   }
 
-  bool _isImageFile(String path) {
+  bool isImageFile(String path) {
     final extensions = ['jpg', 'jpeg', 'png', 'bmp', 'gif'];
     final ext = path.split('.').last.toLowerCase();
     return extensions.contains(ext);
   }
 
-  Future<void> _pickImage() async {
+  Future<void> pickImage() async {
     final results = await FilePicker.platform.pickFiles(
       dialogTitle: "select images",
       type: FileType.image,
       allowMultiple: true,
     );
 
-    _addAnnotation(results?.files.map((f) => File(f.path!)).toList() ?? []);
+    addAnnotation(results?.files.map((f) => File(f.path!)).toList() ?? []);
+    notifyListeners();
   }
 
-  void _addAnnotation(List<File>? newImages) {
+  void addAnnotation(List<File>? newImages) {
     if (newImages == null) return;
 
-    setState(() {
-      _annotations.addAll(newImages.map((img) => AnnotationData(image: img)));
-    });
+    _annotations.addAll(newImages.map((img) => AnnotationData(image: img)));
+
+    notifyListeners();
   }
 
-  void _deleteImage() {
-    if (_currentIndex >= 0 && _currentIndex < _annotations.length) {
-      setState(() {
-        _annotations.removeAt(_currentIndex);
+  void deleteImage() {
+    if (_currentImageIndex >= 0 && _currentImageIndex < _annotations.length) {
+      _annotations.removeAt(_currentImageIndex);
 
-        if (_currentIndex >= _annotations.length && _annotations.isNotEmpty) {
-          _currentIndex = _annotations.length - 1;
-        } else if (_annotations.isEmpty) {
-          _currentIndex = 0;
-        }
-      });
+      if (_currentImageIndex >= _annotations.length &&
+          _annotations.isNotEmpty) {
+        _currentImageIndex = _annotations.length - 1;
+      } else if (_annotations.isEmpty) {
+        _currentImageIndex = 0;
+      }
+
+      notifyListeners();
     }
   }
 
-  void _changeImageAt(int index) => setState(() => _currentIndex = index);
+  void changeImageAt(int index) {
+    _currentImageIndex = index;
+    notifyListeners();
+  }
 
-  void _nextImage() {
+  void nextImage() {
     final nextIndex =
-        (_currentIndex + 1 + _annotations.length) % _annotations.length;
+        (_currentImageIndex + 1 + _annotations.length) % _annotations.length;
 
-    _changeImageAt(nextIndex);
+    changeImageAt(nextIndex);
+    notifyListeners();
   }
 
-  void _previousImage() {
+  void previousImage() {
     final nextIndex =
-        (_currentIndex - 1 + _annotations.length) % _annotations.length;
-    _changeImageAt(nextIndex);
+        (_currentImageIndex - 1 + _annotations.length) % _annotations.length;
+    changeImageAt(nextIndex);
+    notifyListeners();
   }
 
-  void _onImageTap(TapDownDetails details) {
-    print(details.localPosition);
+  void addSaliencyPoint(TapDownDetails details) {
+    _annotations[_currentImageIndex]
+        .bubbleViewClickPoints
+        .add(details.localPosition);
+
+    notifyListeners();
   }
 
-  void _selectTool(int index) {
-    setState(() {
-      _toolSelectionIndex = index;
-      print(index);
-    });
+  void selectTool(int index) {
+    _toolSelectionIndex = index;
+    notifyListeners();
   }
 
-  void _redo() {}
+  void redo() {
+    if (changeStack.canRedo) {
+      changeStack.redo();
+    }
+    notifyListeners();
+  }
 
-  void _undo() {}
+  void undo() {
+    if (changeStack.canUndo) {
+      changeStack.undo();
+    }
+    notifyListeners();
+  }
+}
+
+enum Task {
+  bubbleView,
+  keyPoints,
+  detection,
+  segmentation,
+  classifier,
+}
+
+final editorStateProvider = ChangeNotifierProvider((ref) => EditorState());
+
+class EditorPage extends ConsumerStatefulWidget {
+  const EditorPage({super.key});
+
+  @override
+  ConsumerState<EditorPage> createState() => _EditorPageState();
+}
+
+class _EditorPageState extends ConsumerState<EditorPage> {
+  final List<ToolBarDestination> _tools = [
+    ToolBarDestination(FontAwesomeIcons.arrowPointer, "Bubble View"),
+    ToolBarDestination(FontAwesomeIcons.square, "矩形選択"),
+    ToolBarDestination(FontAwesomeIcons.circle, "円形選択"),
+    ToolBarDestination(FontAwesomeIcons.drawPolygon, "多角形選択"),
+    ToolBarDestination(FontAwesomeIcons.circleDot, "キーポイント"),
+    ToolBarDestination(FontAwesomeIcons.eraser, "削除"),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return ResponsiveLayout(layouts: {
       0: Scaffold(
         appBar: EditorAppBar(
-          onProjectCreate: _createProject,
-          onProjectOpen: _pickProject,
-          onProjectSave: _saveProject,
-          onUndo: _undo,
-          onRedo: _redo,
+          onProjectCreate: ref.read(editorStateProvider).createProject,
+          onProjectOpen: ref.read(editorStateProvider).createProject,
+          onProjectSave: ref.read(editorStateProvider).saveProject,
+          onUndo: ref.read(editorStateProvider).undo,
+          onRedo: ref.read(editorStateProvider).redo,
           onSetting: () => context.go("/settings"),
-          controller: _controller,
+          controller: ref.watch(editorStateProvider).titleController,
         ),
         drawer: Drawer(
           child: Column(
             children: [
-              Expanded(child: Inspector()),
+              Expanded(
+                child: Inspector(
+                  annotationData: ref.watch(editorStateProvider).currentEditing,
+                ),
+              ),
               Expanded(
                 flex: 2,
                 child: Hierarchy(
-                  annotations: _annotations,
-                  selectIndex: _currentIndex,
-                  onSelection: _changeImageAt,
-                  onPickImage: _pickImage,
-                  onPickFolder: _pickFolder,
-                  onDelete: _deleteImage,
+                  annotations: ref.watch(editorStateProvider).annotations,
+                  selectIndex: ref.watch(editorStateProvider).currentImage,
+                  onSelection: ref.read(editorStateProvider).selectTool,
+                  onPickImage: ref.read(editorStateProvider).pickImage,
+                  onPickFolder: ref.read(editorStateProvider).pickFolder,
+                  onDelete: ref.read(editorStateProvider).pickFolder,
                 ),
               ),
             ],
@@ -167,18 +219,19 @@ class _EditorPageState extends State<EditorPage> {
         body: Row(
           children: [
             Toolbar(
-              toolSelectIndex: _toolSelectionIndex,
-              onToolSelected: _selectTool,
+              toolSelectIndex: ref.watch(editorStateProvider).currentTool,
+              onToolSelected: ref.read(editorStateProvider).selectTool,
+              tools: _tools,
             ),
             Expanded(
               flex: 8,
               child: EditorBody(
-                onImageOpen: _pickImage,
-                currentIndex: _currentIndex,
-                annotations: _annotations,
-                onNextImage: _nextImage,
-                onPrevImage: _previousImage,
-                onTap: _onImageTap,
+                onPickImage: ref.read(editorStateProvider).pickImage,
+                currentIndex: ref.watch(editorStateProvider).currentImage,
+                annotations: ref.watch(editorStateProvider).annotations,
+                onNextImage: ref.read(editorStateProvider).nextImage,
+                onPrevImage: ref.read(editorStateProvider).previousImage,
+                onTap: ref.read(editorStateProvider).addSaliencyPoint,
               ),
             ),
           ],
@@ -186,29 +239,30 @@ class _EditorPageState extends State<EditorPage> {
       ),
       1100: Scaffold(
         appBar: EditorAppBar(
-          onProjectCreate: _createProject,
-          onProjectOpen: _pickProject,
-          onProjectSave: _saveProject,
-          onUndo: _undo,
-          onRedo: _redo,
+          onProjectCreate: ref.read(editorStateProvider).createProject,
+          onProjectOpen: ref.read(editorStateProvider).createProject,
+          onProjectSave: ref.read(editorStateProvider).saveProject,
+          onUndo: ref.read(editorStateProvider).undo,
+          onRedo: ref.read(editorStateProvider).redo,
           onSetting: () => context.go("/settings"),
-          controller: _controller,
+          controller: ref.watch(editorStateProvider).titleController,
         ),
         body: Row(
           children: [
             Toolbar(
-              toolSelectIndex: _toolSelectionIndex,
-              onToolSelected: _selectTool,
+              toolSelectIndex: ref.watch(editorStateProvider).currentTool,
+              onToolSelected: ref.read(editorStateProvider).selectTool,
+              tools: _tools,
             ),
             Expanded(
               flex: 8,
               child: EditorBody(
-                onImageOpen: _pickImage,
-                currentIndex: _currentIndex,
-                annotations: _annotations,
-                onNextImage: _nextImage,
-                onPrevImage: _previousImage,
-                onTap: _onImageTap,
+                onPickImage: ref.read(editorStateProvider).pickImage,
+                currentIndex: ref.watch(editorStateProvider).currentImage,
+                annotations: ref.watch(editorStateProvider).annotations,
+                onNextImage: ref.read(editorStateProvider).nextImage,
+                onPrevImage: ref.read(editorStateProvider).previousImage,
+                onTap: ref.read(editorStateProvider).addSaliencyPoint,
               ),
             ),
             Card(
@@ -219,16 +273,23 @@ class _EditorPageState extends State<EditorPage> {
                 width: 300,
                 child: Column(
                   children: [
-                    Expanded(child: Inspector()),
+                    Expanded(
+                      child: Inspector(
+                        annotationData:
+                            ref.watch(editorStateProvider).currentEditing,
+                      ),
+                    ),
                     Expanded(
                       flex: 2,
                       child: Hierarchy(
-                        annotations: _annotations,
-                        selectIndex: _currentIndex,
-                        onSelection: _changeImageAt,
-                        onPickImage: _pickImage,
-                        onPickFolder: _pickFolder,
-                        onDelete: _deleteImage,
+                        annotations: ref.watch(editorStateProvider).annotations,
+                        selectIndex:
+                            ref.watch(editorStateProvider).currentImage,
+                        onSelection:
+                            ref.read(editorStateProvider).changeImageAt,
+                        onPickImage: ref.read(editorStateProvider).pickImage,
+                        onPickFolder: ref.read(editorStateProvider).pickFolder,
+                        onDelete: ref.read(editorStateProvider).deleteImage,
                       ),
                     ),
                   ],
@@ -283,6 +344,27 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: onProjectSave,
               icon: Icon(FontAwesomeIcons.floppyDisk)),
         ],
+        centerActions: [
+          ToggleButtons(
+            borderColor: Colors.transparent,
+            isSelected: [false, false, false],
+            onPressed: (index) {},
+            children: [
+              Padding(
+                padding: EdgeInsets.all(10.0),
+                child: Icon(FontAwesomeIcons.font),
+              ),
+              Padding(
+                padding: EdgeInsets.all(10.0),
+                child: Icon(FontAwesomeIcons.eye),
+              ),
+              Padding(
+                padding: EdgeInsets.all(10.0),
+                child: Icon(FontAwesomeIcons.circleDot),
+              ),
+            ],
+          )
+        ],
         rightActions: [
           IconButton(
               onPressed: onUndo, icon: Icon(FontAwesomeIcons.arrowRotateLeft)),
@@ -298,14 +380,21 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class CommandBar extends StatelessWidget implements PreferredSizeWidget {
-  const CommandBar({
+  CommandBar({
     super.key,
     this.leftActions,
     this.centerActions,
     this.rightActions,
     this.leftMargin = 45,
     this.rightMargin = 45,
-  });
+    leftAlignment,
+    centerAlignment,
+    rightAlignment,
+  }) {
+    this.leftAlignment = leftAlignment ?? MainAxisAlignment.start;
+    this.centerAlignment = centerAlignment ?? MainAxisAlignment.start;
+    this.rightAlignment = rightAlignment ?? MainAxisAlignment.start;
+  }
 
   final List<Widget>? leftActions;
   final List<Widget>? centerActions;
@@ -315,6 +404,9 @@ class CommandBar extends StatelessWidget implements PreferredSizeWidget {
   final int rightFlex = 3;
   final double leftMargin;
   final double rightMargin;
+  late final MainAxisAlignment leftAlignment;
+  late final MainAxisAlignment centerAlignment;
+  late final MainAxisAlignment rightAlignment;
 
   @override
   Widget build(BuildContext context) {
@@ -324,19 +416,22 @@ class CommandBar extends StatelessWidget implements PreferredSizeWidget {
         Flexible(
           flex: leftFlex,
           child: Row(
-            children: [...?leftActions],
+            mainAxisAlignment: leftAlignment,
+            children: leftActions ?? [],
           ),
         ),
         Flexible(
           flex: centerFlex,
           child: Row(
-            children: [...?centerActions],
+            mainAxisAlignment: centerAlignment,
+            children: centerActions ?? [],
           ),
         ),
         Flexible(
           flex: rightFlex,
           child: Row(
-            children: [...?rightActions],
+            mainAxisAlignment: rightAlignment,
+            children: rightActions ?? [],
           ),
         ),
         SizedBox(width: rightMargin),
@@ -349,12 +444,32 @@ class CommandBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class Inspector extends StatelessWidget {
-  const Inspector({super.key});
+  const Inspector({
+    super.key,
+    this.annotationData,
+  });
+
+  final AnnotationData? annotationData;
 
   @override
   Widget build(BuildContext context) {
+    if (annotationData?.bubbleViewClickPoints.isEmpty ?? true) {
+      return Container();
+    }
+
     return ListView(
-      children: [],
+      children: [
+        ExpansionTile(
+          title: Text("BubbleView"),
+          children: annotationData?.bubbleViewClickPoints.map((e) {
+                return ListTile(
+                  dense: true,
+                  title: Text("x: ${e.dx}, y: ${e.dy}"),
+                );
+              }).toList() ??
+              [],
+        ),
+      ],
     );
   }
 }
@@ -380,14 +495,14 @@ class Hierarchy extends StatelessWidget {
   final void Function(int selection) onSelection;
 
   List<Widget> generateLayerList(BuildContext context) {
-    final indicatorColor = Theme.of(context).colorScheme.secondaryContainer;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return List<Widget>.generate(
       annotations.length,
       (index) => ListTile(
         selected: index == selectIndex,
-        selectedColor: Colors.blueAccent,
-        selectedTileColor: indicatorColor,
+        selectedColor: colorScheme.primary,
+        selectedTileColor: colorScheme.primaryContainer,
         onTap: () => onSelection(index),
         // key: PageStorageKey(index),
         leading: Text("$index"),
@@ -441,10 +556,12 @@ class Toolbar extends StatelessWidget {
     super.key,
     required this.toolSelectIndex,
     required this.onToolSelected,
+    required this.tools,
   });
 
   final int toolSelectIndex;
   final void Function(int index) onToolSelected;
+  final List<ToolBarDestination> tools;
 
   @override
   Widget build(BuildContext context) {
@@ -452,26 +569,30 @@ class Toolbar extends StatelessWidget {
       indicatorShape: ContinuousRectangleBorder(),
       minWidth: 40,
       elevation: 5,
-      destinations: [
-        NavigationRailDestination(
-          icon: Icon(FontAwesomeIcons.arrowPointer),
-          label: Text("Bubble View"),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.rectangle_outlined),
-          label: Text(""),
-        ),
-      ],
+      destinations: tools,
       onDestinationSelected: onToolSelected,
       selectedIndex: toolSelectIndex,
     );
   }
 }
 
+class ToolBarDestination extends NavigationRailDestination {
+  ToolBarDestination(
+    IconData icon,
+    String message,
+  ) : super(
+          icon: Tooltip(
+            message: message,
+            child: Icon(icon),
+          ),
+          label: Text(message),
+        );
+}
+
 class EditorBody extends StatelessWidget {
   const EditorBody({
     super.key,
-    required this.onImageOpen,
+    required this.onPickImage,
     required this.currentIndex,
     required this.annotations,
     required this.onNextImage,
@@ -481,14 +602,14 @@ class EditorBody extends StatelessWidget {
 
   final List<AnnotationData> annotations;
   final int currentIndex;
-  final VoidCallback onImageOpen;
+  final VoidCallback onPickImage;
   final VoidCallback onNextImage;
   final VoidCallback onPrevImage;
   final void Function(TapDownDetails details) onTap;
 
   Widget emptyLayout() {
     return GestureDetector(
-      onTap: onImageOpen,
+      onTap: onPickImage,
       child: Container(
         color: Colors.transparent,
         child: Center(

@@ -10,17 +10,22 @@ dependencies:
     sdk: flutter
   go_router:
   file_picker:
-  sqlite3:
   font_awesome_flutter:
   shared_preferences:
   http:
   path:
+  riverpod:
+  flutter_riverpod:
+  undo:
+  sqlite3:
+  sqflite:
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints:
-  shared_preferences:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/create.sql
