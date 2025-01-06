@@ -38,8 +38,6 @@ class SettingsPage extends ConsumerWidget {
                     },
                   ),
                 ),
-                SwitchListTile(
-                    title: Text("レイアウトを右にする"), value: true, onChanged: (b) {})
               ],
             ),
           ],

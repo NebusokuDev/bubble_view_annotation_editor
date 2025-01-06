@@ -459,13 +459,14 @@ class Inspector extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme;
 
-    return ExpansionTile(
-      minTileHeight: 0,
-      tilePadding: EdgeInsets.symmetric(horizontal: 16),
+    return FolderTile(
       title: Text(
         "BubbleView",
         style: style.labelLarge,
       ),
+      onTap: () {},
+      selected: null,
+      selectedColor: null,
       children: [
         ListTile(
           title: Text("半径", style: style.labelMedium),
@@ -500,23 +501,18 @@ class Hierarchy extends StatelessWidget {
     final style = Theme.of(context).textTheme;
     return List<Widget>.generate(
       annotations.length,
-      (index) => ListTile(
+      (index) => FolderTile(
         selected: index == selectIndex,
         selectedColor: colorScheme.primary,
         selectedTileColor: colorScheme.primaryContainer,
         onTap: () => onSelection(index),
         // key: PageStorageKey(index),
-        leading: Text(
-          "$index",
-          style: style.labelMedium,
-        ),
         title: Text(
           basename(annotations[index].image.path),
           style: style.labelMedium?.copyWith(
             color: index == selectIndex ? colorScheme.primary : null,
           ),
         ),
-        minTileHeight: 30,
       ),
     );
   }
@@ -673,12 +669,51 @@ class EditorBody extends StatelessWidget {
   }
 }
 
-class ExpansionTile extends StatelessWidget {
-  const ExpansionTile({super.key});
+class FolderTile extends StatefulWidget {
+  final Widget title;
+  final List<Widget>? children;
+  final VoidCallback onTap;
+  final bool? selected;
+  final Color? selectedColor;
+  final Color? selectedTileColor;
+
+  const FolderTile({
+    super.key,
+    required this.title,
+    this.children,
+    required this.onTap,
+    this.selected,
+    this.selectedColor,
+    this.selectedTileColor,
+  });
+
+  @override
+  _FolderTileState createState() => _FolderTileState();
+}
+
+class _FolderTileState extends State<FolderTile> {
+  bool _isExpanded = false;
+
+  void toggleExpand() => setState(() => _isExpanded = !_isExpanded);
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
+    return Column(
+      children: [
+        ListTile(
+          selected: widget.selected ?? false,
+          onTap: widget.onTap,
+          title: widget.title,
+          trailing: widget.children?.isEmpty ?? true
+              ? null
+              : IconButton(
+                  onPressed: toggleExpand,
+                  icon:
+                      Icon(_isExpanded ? Icons.expand_more : Icons.expand_less),
+                ),
+        ),
+        if (_isExpanded) ...?widget.children,
+      ],
+    );
   }
 }
