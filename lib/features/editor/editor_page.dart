@@ -518,8 +518,6 @@ class Hierarchy extends StatelessWidget {
   final void Function(int selection) onSelection;
 
   List<Widget> generateLayerList(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final style = Theme.of(context).textTheme;
     if (annotations == null) return [];
     return List<Widget>.generate(annotations!.length, (index) {
       final annotationData = annotations![index];

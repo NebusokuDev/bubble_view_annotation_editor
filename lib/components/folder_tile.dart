@@ -19,10 +19,10 @@ class FolderTile extends StatefulWidget {
   });
 
   @override
-  _FolderTileState createState() => _FolderTileState();
+  FolderTileState createState() => FolderTileState();
 }
 
-class _FolderTileState extends State<FolderTile> {
+class FolderTileState extends State<FolderTile> {
   bool _isExpanded = false;
 
   void toggleExpand() => setState(() => _isExpanded = !_isExpanded);
