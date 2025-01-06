@@ -43,7 +43,7 @@ class EditorState extends ChangeNotifier {
       TextEditingController(text: "undefined");
 
   void createProject({String name = "undefined"}) {
-    project = Project();
+    project = Project(name: name);
     notifyListeners();
   }
 

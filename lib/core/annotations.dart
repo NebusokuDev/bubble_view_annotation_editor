@@ -68,7 +68,12 @@ class Bounding {
 
 class Project {
   late String path;
-  String name = "undefined";
+  late String name;
+
   final List<Label> labels = [];
   final List<AnnotationData> annotations = [];
+
+  Project({String? name}) {
+    this.name = name ?? "undefined";
+  }
 }
