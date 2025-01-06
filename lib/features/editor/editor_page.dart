@@ -185,14 +185,74 @@ enum Task {
 
 final editorStateProvider = ChangeNotifierProvider((ref) => EditorState());
 
-class EditorPage extends ConsumerStatefulWidget {
-  const EditorPage({super.key});
+class EditorPage extends ConsumerWidget {
+  EditorPage({super.key});
 
-  @override
-  ConsumerState<EditorPage> createState() => _EditorPageState();
-}
+  Future<void> createNewProject(BuildContext context, WidgetRef ref) async {
+    // 現在のプロジェクトが存在する場合、確認ダイアログを表示
+    final currentProject = ref.watch(editorStateProvider).project;
+    if (currentProject != null) {
+      final agreeToCreateNew = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("新しいプロジェクトを作成しますか？"),
+          content: Text("現在のプロジェクトは破棄されます。この操作を続行してもよろしいですか？"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text("キャンセル"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text("続行"),
+            ),
+          ],
+        ),
+      );
+      if (agreeToCreateNew == false) return; // キャンセルされた場合、終了
+    }
 
-class _EditorPageState extends ConsumerState<EditorPage> {
+    // プロジェクト名の入力ダイアログを表示
+    final projectName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final nameController = TextEditingController();
+        return AlertDialog(
+          title: Text("新しいプロジェクト"),
+          content: TextField(
+            controller: nameController,
+            decoration: InputDecoration(
+              labelText: "プロジェクト名を入力",
+              hintText: "My New Project",
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null), // キャンセル時
+              child: Text("キャンセル"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(nameController.text), // 名前を返す
+              child: Text("作成"),
+            ),
+          ],
+        );
+      },
+    );
+
+    // ユーザーがキャンセルした場合
+    if (projectName == null || projectName.isEmpty) return;
+
+    // プロジェクトの作成処理を実行
+    ref.read(editorStateProvider).createProject(name: projectName);
+
+    // ユーザー通知（オプション）
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("プロジェクト \"$projectName\" を作成しました")),
+    );
+  }
+
+
   final List<ToolBarDestination> _tools = [
     ToolBarDestination(FontAwesomeIcons.arrowPointer, "Bubble View"),
     ToolBarDestination(FontAwesomeIcons.square, "矩形選択"),
@@ -203,11 +263,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ResponsiveLayout(layouts: {
       0: Scaffold(
         appBar: EditorAppBar(
-          onProjectCreate: ref.read(editorStateProvider).createProject,
+          onProjectCreate: () => createNewProject(context, ref),
           onProjectOpen: ref.read(editorStateProvider).openProject,
           onProjectSave: ref.read(editorStateProvider).saveProject,
           onUndo: ref.read(editorStateProvider).undo,
@@ -262,7 +322,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       ),
       1100: Scaffold(
         appBar: EditorAppBar(
-          onProjectCreate: ref.read(editorStateProvider).createProject,
+          onProjectCreate: () => createNewProject(context, ref),
           onProjectOpen: ref.read(editorStateProvider).openProject,
           onProjectSave: ref.read(editorStateProvider).saveProject,
           onUndo: ref.read(editorStateProvider).undo,
@@ -323,6 +383,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         ),
       ),
     });
+  }
+}
+
+class ProjectDialog extends StatelessWidget {
+  const ProjectDialog({super.key});
+
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    throw UnimplementedError();
+
+    // todo: - プロジェクト名
+    // ラベルのプリセット[imagenet 1k, coco, pascal voc, etc...]
   }
 }
 
@@ -490,8 +564,11 @@ class Inspector extends StatelessWidget {
       selectedColor: null,
       children: [
         ListTile(
-          title: Text("半径", style: style.labelMedium),
-        )
+            title: Text("半径", style: style.labelMedium),
+            trailing: Slider(
+              value: 0,
+              onChanged: (double value) {},
+            ))
       ],
     );
   }
@@ -584,7 +661,8 @@ class AnnotationTile extends StatelessWidget {
   List<Widget> buildAnnotationList() {
     final saliencyPoint = annotationData.bubbleViewClickPoints
         .map((e) => ListTile(
-              title: Text("[${e.dx}, ${e.dy}]"),
+              title: Text(
+                  "[${e.dx.toStringAsFixed(2)}, ${e.dy.toStringAsFixed(2)}]"),
             ))
         .toList();
     return [
@@ -613,7 +691,7 @@ class AnnotationTile extends StatelessWidget {
           color: selected ? colorScheme.primary : null,
         ),
       ),
-      children: [],
+      children: buildAnnotationList(),
     );
   }
 }
@@ -704,8 +782,8 @@ class EditorBody extends StatelessWidget {
                 flex: 12,
                 child: BlurImage(
                   image: annotations![currentIndex].image,
-                  onTap: onTap,
-                  enableBlur: false,
+                  onTapDown: onTap,
+                  enableBlur: true,
                   blurAmount: 5.0,
                 ),
               ),
