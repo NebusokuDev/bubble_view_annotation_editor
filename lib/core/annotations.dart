@@ -1,44 +1,34 @@
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:sqflite/sqflite.dart';
+
 class AnnotationData {
-  final int? id;
+  final int id;
   final File image;
   final List<Offset> keyPoints = [];
-  final List<Offset> bubbleViewClickPoints = [];
-  final List<String> label = [];
-  final List<Bounding> bounds = [];
+  final List<Offset> clickPoints = [];
+  final List<Label> labels = [];
+  final List<Bound> bounds = [];
 
   AnnotationData({
+    required this.id,
     required this.image,
-    this.id,
   });
+}
 
-  factory AnnotationData.fromJson(Map<String, dynamic> json) {
-    return AnnotationData(
-      image: File(json['image'] as String),
-      id: json['id'] as int?,
-    )
-      ..keyPoints.addAll(
-          (json['keyPoints'] as List).map((e) => Offset(e['x'], e['y'])))
-      ..bubbleViewClickPoints.addAll((json['bubbleViewClickPoints'] as List)
-          .map((e) => Offset(e['x'], e['y'])))
-      ..label.addAll((json['label'] as List).cast<String>())
-      ..bounds
-          .addAll((json['bounds'] as List).map((b) => Bounding.fromJson(b)));
-  }
+class KeyPoints {
+  final int id;
+  final Offset position;
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'image': image.path,
-      'keyPoints': keyPoints.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
-      'bubbleViewClickPoints':
-          bubbleViewClickPoints.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
-      'label': label,
-      'bounds': bounds.map((b) => b.toJson()).toList(),
-    };
-  }
+  KeyPoints({required this.id, required this.position});
+}
+
+class ClickPoints {
+  final int id;
+  final Offset position;
+
+  ClickPoints({required this.id, required this.position});
 }
 
 class Label {
@@ -48,32 +38,66 @@ class Label {
   Label({required this.id, required this.name});
 }
 
-class Bounding {
+class Bound {
+  final int id;
   final List<Offset> path;
+  final Label? label;
 
-  Bounding({List<Offset>? path}) : path = path ?? [];
-
-  factory Bounding.fromJson(Map<String, dynamic> json) {
-    return Bounding(
-      path: (json['path'] as List).map((e) => Offset(e['x'], e['y'])).toList(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'path': path.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
-    };
-  }
+  Bound({required this.id, this.label, List<Offset>? path}) : path = path ?? [];
 }
 
 class Project {
   late String path;
   late String name;
 
+  int saliencyClickLimit = 30;
+  double bubbleRadius = 50;
+  double blurAmount = 10;
+
+  late final Database database;
+
   final List<Label> labels = [];
   final List<AnnotationData> annotations = [];
 
   Project({String? name}) {
     this.name = name ?? "undefined";
+  }
+
+  void update(AnnotationData annotationData) {
+    final index = annotations.indexWhere((e) => e.id == annotationData.id);
+    if (index != -1) {
+      annotations[index] = annotationData;
+      return;
+    }
+
+    annotations.add(annotationData);
+  }
+
+  void createAnnotation({required File image}) {
+    final newId = annotations.isEmpty
+        ? 1
+        : annotations.map((e) => e.id).reduce((a, b) => a > b ? a : b) + 1;
+
+    final annotationData = AnnotationData(image: image, id: newId);
+    annotations.add(annotationData);
+  }
+
+  void setBlurAmount(double amount) {
+    if (amount.isNegative) return;
+    blurAmount = amount;
+  }
+
+  void addLabel(String name) {
+    final id = labels.length + 1;
+    labels.add(Label(id: id, name: name));
+  }
+
+  void setBubbleRadius(double radius) {
+    if (radius.isNegative) return;
+    bubbleRadius = radius;
+  }
+
+  void removeLabelAt(int id) {
+    labels.removeWhere((label) => label.id == id);
   }
 }

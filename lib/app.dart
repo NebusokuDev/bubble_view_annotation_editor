@@ -37,6 +37,7 @@ extension on Brightness {
 final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(path: "/", builder: (context, state) => EditorPage()),
+    GoRoute(path: "/editor", builder: (context, state) => EditorPage()),
     GoRoute(path: "/settings", builder: (context, state) => SettingsPage()),
   ],
 );

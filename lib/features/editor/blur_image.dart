@@ -4,11 +4,12 @@ import 'dart:ui';
 import 'package:bubble_view_annotation_editor/features/editor/clip_image.dart';
 import 'package:flutter/material.dart';
 
-class BlurImage extends StatefulWidget {
+class BlurImage extends StatelessWidget {
   BlurImage({
     super.key,
     required this.image,
     required this.onTapDown,
+    this.clipPos,
     enableBlur,
     blurAmount,
   }) {
@@ -19,22 +20,9 @@ class BlurImage extends StatefulWidget {
   final File image;
   late final bool enableBlur;
   late final double blurAmount;
+  final Offset? clipPos;
 
   final void Function(TapDownDetails) onTapDown;
-
-  @override
-  State<BlurImage> createState() => _BlurImageState();
-}
-
-class _BlurImageState extends State<BlurImage> {
-  Offset? clipPos = Offset(0, 0);
-
-  void onTapDown(TapDownDetails details) {
-    widget.onTapDown(details);
-    setState(() {
-      clipPos = details.localPosition;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +31,7 @@ class _BlurImageState extends State<BlurImage> {
       children: [
         GestureDetector(
           onTapDown: onTapDown,
-          child: Image.file(widget.image),
+          child: Image.file(image),
         ),
         IgnorePointer(
           child: Align(
@@ -53,9 +41,9 @@ class _BlurImageState extends State<BlurImage> {
             child: Transform.scale(
               scale: 1.05,
               child: ImageFiltered(
-                imageFilter: ImageFilter.blur(
-                    sigmaY: widget.blurAmount, sigmaX: widget.blurAmount),
-                child: Image.file(widget.image),
+                imageFilter:
+                    ImageFilter.blur(sigmaY: blurAmount, sigmaX: blurAmount),
+                child: Image.file(image),
               ),
             ),
           ),
@@ -65,7 +53,7 @@ class _BlurImageState extends State<BlurImage> {
             child: ClipOut(
               localPosition: clipPos!,
               radius: 50,
-              child: Image.file(widget.image),
+              child: Image.file(image),
             ),
           )
       ],

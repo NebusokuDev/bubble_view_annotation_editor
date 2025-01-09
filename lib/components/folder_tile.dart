@@ -12,7 +12,7 @@ class FolderTile extends StatefulWidget {
     super.key,
     required this.title,
     this.children,
-    required this.onTap,
+    this.onTap,
     this.selected,
     this.selectedColor,
     this.selectedTileColor,

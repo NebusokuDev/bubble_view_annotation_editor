@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:bubble_view_annotation_editor/core/annotations.dart';
 import 'package:bubble_view_annotation_editor/components/folder_tile.dart';
 import 'package:bubble_view_annotation_editor/components/responsive_layout.dart';
-import 'package:bubble_view_annotation_editor/core/annotations.dart';
 import 'package:bubble_view_annotation_editor/features/editor/blur_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -20,7 +20,6 @@ class EditorState extends ChangeNotifier {
 
   int _currentImageIndex = 0;
   int _toolSelectionIndex = 0;
-  double _blurAmount = 10;
   bool enableBlur = true;
 
   List<AnnotationData>? get annotations => project?.annotations;
@@ -31,13 +30,13 @@ class EditorState extends ChangeNotifier {
         : project?.annotations[_currentImageIndex];
   }
 
-  int get currentImage => _currentImageIndex;
+  int get currentImageIndex => _currentImageIndex;
 
   int get currentTool => _toolSelectionIndex;
 
-  double get blurAmount => _blurAmount;
+  double get blurAmount => project?.blurAmount ?? 30;
 
-  set blurAmount(value) => _blurAmount = value;
+  set blurAmount(value) => project?.setBlurAmount(value);
 
   final TextEditingController titleController =
       TextEditingController(text: "undefined");
@@ -72,7 +71,7 @@ class EditorState extends ChangeNotifier {
 
     final dir = Directory(selectedDirectory);
 
-    addAnnotation(dir
+    addAnnotations(dir
         .listSync()
         .where((item) => item is File && isImageFile(item.path))
         .map((item) => File(item.path))
@@ -93,15 +92,16 @@ class EditorState extends ChangeNotifier {
       allowMultiple: true,
     );
 
-    addAnnotation(results?.files.map((f) => File(f.path!)).toList() ?? []);
+    addAnnotations(results?.files.map((f) => File(f.path!)).toList() ?? []);
     notifyListeners();
   }
 
-  void addAnnotation(List<File>? newImages) {
+  void addAnnotations(List<File>? newImages) {
     if (newImages == null) return;
 
-    project?.annotations
-        .addAll(newImages.map((img) => AnnotationData(image: img)));
+    for (final image in newImages) {
+      project?.createAnnotation(image: image);
+    }
 
     notifyListeners();
   }
@@ -145,12 +145,26 @@ class EditorState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addLabels(String label) {
+    project?.addLabel(label);
+    notifyListeners();
+  }
+
   void addSaliencyPoint(TapDownDetails details) {
-    project?.annotations[_currentImageIndex].bubbleViewClickPoints
-        .add(details.localPosition);
+    final data = project?.annotations[_currentImageIndex];
+
+    if (data == null) return;
+    if (data.clickPoints.length > (project?.saliencyClickLimit ?? 0)) {
+      nextImage();
+      return;
+    }
+
+    data.clickPoints.add(details.localPosition);
+    project?.update(data);
+
     if (kDebugMode) {
       print(details.localPosition);
-      print(project?.annotations[currentImage].bubbleViewClickPoints.length);
+      print(project?.annotations[currentImageIndex].clickPoints.length);
     }
     notifyListeners();
   }
@@ -232,7 +246,8 @@ class EditorPage extends ConsumerWidget {
               child: Text("キャンセル"),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(nameController.text), // 名前を返す
+              onPressed: () => Navigator.of(context).pop(nameController.text),
+              // 名前を返す
               child: Text("作成"),
             ),
           ],
@@ -252,9 +267,8 @@ class EditorPage extends ConsumerWidget {
     );
   }
 
-
   final List<ToolBarDestination> _tools = [
-    ToolBarDestination(FontAwesomeIcons.arrowPointer, "Bubble View"),
+    ToolBarDestination(FontAwesomeIcons.magnifyingGlass, "Bubble View"),
     ToolBarDestination(FontAwesomeIcons.square, "矩形選択"),
     ToolBarDestination(FontAwesomeIcons.circle, "円形選択"),
     ToolBarDestination(FontAwesomeIcons.drawPolygon, "多角形選択"),
@@ -282,14 +296,14 @@ class EditorPage extends ConsumerWidget {
               Expanded(
                 flex: 2,
                 child: Inspector(
-                  annotationData: ref.watch(editorStateProvider).currentEditing,
+                  project: ref.read(editorStateProvider).project,
                 ),
               ),
               Expanded(
                 flex: 1,
                 child: Hierarchy(
                   annotations: ref.watch(editorStateProvider).annotations,
-                  selectIndex: ref.watch(editorStateProvider).currentImage,
+                  selectIndex: ref.watch(editorStateProvider).currentImageIndex,
                   onSelection: ref.read(editorStateProvider).selectTool,
                   onPickImage: ref.read(editorStateProvider).pickImage,
                   onPickFolder: ref.read(editorStateProvider).pickFolder,
@@ -310,7 +324,7 @@ class EditorPage extends ConsumerWidget {
               flex: 8,
               child: EditorBody(
                 onPickImage: ref.read(editorStateProvider).pickImage,
-                currentIndex: ref.watch(editorStateProvider).currentImage,
+                currentIndex: ref.watch(editorStateProvider).currentImageIndex,
                 annotations: ref.watch(editorStateProvider).annotations,
                 onNextImage: ref.read(editorStateProvider).nextImage,
                 onPrevImage: ref.read(editorStateProvider).previousImage,
@@ -342,7 +356,7 @@ class EditorPage extends ConsumerWidget {
               flex: 8,
               child: EditorBody(
                 onPickImage: ref.read(editorStateProvider).pickImage,
-                currentIndex: ref.watch(editorStateProvider).currentImage,
+                currentIndex: ref.watch(editorStateProvider).currentImageIndex,
                 annotations: ref.watch(editorStateProvider).annotations,
                 onNextImage: ref.read(editorStateProvider).nextImage,
                 onPrevImage: ref.read(editorStateProvider).previousImage,
@@ -359,15 +373,14 @@ class EditorPage extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: Inspector(
-                        annotationData:
-                            ref.watch(editorStateProvider).currentEditing,
+                        project: ref.watch(editorStateProvider).project,
                       ),
                     ),
                     Expanded(
                       child: Hierarchy(
                         annotations: ref.watch(editorStateProvider).annotations,
                         selectIndex:
-                            ref.watch(editorStateProvider).currentImage,
+                            ref.watch(editorStateProvider).currentImageIndex,
                         onSelection:
                             ref.read(editorStateProvider).changeImageAt,
                         onPickImage: ref.read(editorStateProvider).pickImage,
@@ -383,20 +396,6 @@ class EditorPage extends ConsumerWidget {
         ),
       ),
     });
-  }
-}
-
-class ProjectDialog extends StatelessWidget {
-  const ProjectDialog({super.key});
-
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
-
-    // todo: - プロジェクト名
-    // ラベルのプリセット[imagenet 1k, coco, pascal voc, etc...]
   }
 }
 
@@ -442,27 +441,6 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
               onPressed: onProjectSave,
               icon: Icon(FontAwesomeIcons.floppyDisk)),
-        ],
-        centerActions: [
-          ToggleButtons(
-            borderColor: Colors.transparent,
-            isSelected: [false, false, false],
-            onPressed: (index) {},
-            children: [
-              Padding(
-                padding: EdgeInsets.all(10.0),
-                child: Icon(FontAwesomeIcons.font),
-              ),
-              Padding(
-                padding: EdgeInsets.all(10.0),
-                child: Icon(FontAwesomeIcons.eye),
-              ),
-              Padding(
-                padding: EdgeInsets.all(10.0),
-                child: Icon(FontAwesomeIcons.circleDot),
-              ),
-            ],
-          )
         ],
         rightActions: [
           IconButton(
@@ -545,31 +523,41 @@ class CommandBar extends StatelessWidget implements PreferredSizeWidget {
 class Inspector extends StatelessWidget {
   const Inspector({
     super.key,
-    this.annotationData,
+    this.project,
   });
 
-  final AnnotationData? annotationData;
+  final Project? project;
+
+  Widget createLabelUI() {
+    return ExpansionTile(
+      title: Text("ラベル"),
+      children: [
+        ListTile(
+          title: Text("ラベル"),
+        ),
+      ],
+    );
+  }
+
+  Widget createSaliencyUI() {
+    return ExpansionTile(title: Text("Bubble View"));
+  }
+
+  Widget createKeyPointUI() {
+    return Container();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme;
+    if (project == null) return Container();
 
-    return FolderTile(
-      title: Text(
-        "BubbleView",
-        style: style.labelLarge,
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          createLabelUI(),
+          createSaliencyUI(),
+        ],
       ),
-      onTap: () {},
-      selected: null,
-      selectedColor: null,
-      children: [
-        ListTile(
-            title: Text("半径", style: style.labelMedium),
-            trailing: Slider(
-              value: 0,
-              onChanged: (double value) {},
-            ))
-      ],
     );
   }
 }
@@ -659,12 +647,14 @@ class AnnotationTile extends StatelessWidget {
   final VoidCallback onSelection;
 
   List<Widget> buildAnnotationList() {
-    final saliencyPoint = annotationData.bubbleViewClickPoints
-        .map((e) => ListTile(
-              title: Text(
-                  "[${e.dx.toStringAsFixed(2)}, ${e.dy.toStringAsFixed(2)}]"),
-            ))
-        .toList();
+    final saliencyPoint = annotationData.clickPoints.map((point) {
+      final x = point.dx.toStringAsFixed(2);
+      final y = point.dy.toStringAsFixed(2);
+
+      return ListTile(
+        title: Text("[$x, $y]"),
+      );
+    }).toList();
     return [
       if (saliencyPoint.isNotEmpty)
         ExpansionTile(
