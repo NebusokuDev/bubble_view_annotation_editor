@@ -1,5 +1,5 @@
 name: bubble_view_annotation_editor
-description: "image anotation editor"
+description: "image annotation editor"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -17,8 +17,8 @@ dependencies:
   riverpod:
   flutter_riverpod:
   undo:
-  sqlite3:
   sqflite:
+  sqflite_common_ffi:
 
 dev_dependencies:
   flutter_test:
@@ -27,5 +27,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/sql/create.sql

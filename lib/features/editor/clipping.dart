@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
-class ClipOut extends StatelessWidget {
-  const ClipOut({
+class Clipping extends StatelessWidget {
+  const Clipping({
     super.key,
     required this.child,
     required this.localPosition,
@@ -35,7 +35,6 @@ class CircleClipper extends CustomClipper<Path> {
   Path getClip(Size size) {
     final path = Path();
 
-    final offset = Offset(size.width / 2, size.height / 2);
     path.addOval(Rect.fromCircle(center: localPosition, radius: radius));
     return path;
   }

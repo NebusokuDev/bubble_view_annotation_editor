@@ -1,34 +1,109 @@
 import 'dart:io';
-import 'dart:ui';
 
-import 'package:sqflite/sqflite.dart';
+import 'package:flutter/cupertino.dart';
 
-class AnnotationData {
+class Annotation {
   final int id;
-  final File image;
-  final List<Offset> keyPoints = [];
-  final List<Offset> clickPoints = [];
-  final List<Label> labels = [];
-  final List<Bound> bounds = [];
+  File image;
+  List<KeyPoint> keyPoints;
+  List<ClickPoint> clickPoints;
+  List<Label> imageLabels;
+  List<Bound> bounds;
 
-  AnnotationData({
+  Annotation({
     required this.id,
     required this.image,
+    this.imageLabels = const [],
+    this.bounds = const [],
+    this.clickPoints = const [],
+    this.keyPoints = const [],
   });
+
+  Annotation copyWith({
+    int? id,
+    File? image,
+    List<KeyPoint>? keyPoints,
+    List<ClickPoint>? clickPoints,
+    List<Label>? imageLabels,
+    List<Bound>? bounds,
+  }) {
+    return Annotation(
+      id: id ?? this.id,
+      image: image ?? this.image,
+      keyPoints: keyPoints ?? [...this.keyPoints],
+      clickPoints: clickPoints ?? [...this.clickPoints],
+      imageLabels: imageLabels ?? [...this.imageLabels],
+      bounds: bounds ?? [...this.bounds],
+    );
+  }
 }
 
-class KeyPoints {
-  final int id;
-  final Offset position;
+class Dataset {
+  List<Annotation> annotations;
 
-  KeyPoints({required this.id, required this.position});
+  Dataset({this.annotations = const []});
+
+  bool get isEmpty => annotations.isEmpty;
 }
 
-class ClickPoints {
+enum BodyPart {
+  nose,
+  eyeL,
+  eyeR,
+  earL,
+  earR,
+  shoulderL,
+  shoulderR,
+  elbowL,
+  elbowR,
+  wristL,
+  wristR,
+  hipL,
+  hipR,
+  kneeL,
+  kneeR,
+  ankleL,
+  ankleR,
+}
+
+class KeyPoint {
   final int id;
   final Offset position;
+  final BodyPart bodyPart;
 
-  ClickPoints({required this.id, required this.position});
+  KeyPoint({required this.id, required this.position, required this.bodyPart});
+
+  KeyPoint copyWith({
+    int? id,
+    Offset? position,
+    BodyPart? bodyPart,
+  }) {
+    return KeyPoint(
+      id: id ?? this.id,
+      position: position ?? this.position,
+      bodyPart: bodyPart ?? this.bodyPart,
+    );
+  }
+}
+
+class ClickPoint {
+  final int id;
+  final Offset position;
+  final double radius;
+
+  ClickPoint({required this.id, required this.position, required this.radius});
+
+  ClickPoint copyWith({
+    int? id,
+    Offset? position,
+    double? radius,
+  }) {
+    return ClickPoint(
+      id: id ?? this.id,
+      position: position ?? this.position,
+      radius: radius ?? this.radius,
+    );
+  }
 }
 
 class Label {
@@ -36,6 +111,16 @@ class Label {
   final String name;
 
   Label({required this.id, required this.name});
+
+  Label copyWith({
+    int? id,
+    String? name,
+  }) {
+    return Label(
+      id: id ?? this.id,
+      name: name ?? this.name,
+    );
+  }
 }
 
 class Bound {
@@ -44,60 +129,121 @@ class Bound {
   final Label? label;
 
   Bound({required this.id, this.label, List<Offset>? path}) : path = path ?? [];
+
+  Bound copyWith({
+    int? id,
+    List<Offset>? path,
+    Label? label,
+  }) {
+    return Bound(
+      id: id ?? this.id,
+      path: path ?? [...this.path],
+      label: label ?? this.label,
+    );
+  }
+}
+
+class Metadata {
+  String projectName;
+  String author;
+  String license;
+  List<Label> projectLabels;
+
+  Metadata({
+    this.projectName = "undefined",
+    this.author = "",
+    this.license = "MIT",
+    this.projectLabels = const [],
+  });
+
+  Metadata copyWith({
+    String? projectName,
+    String? author,
+    String? license,
+    List<Label>? projectLabels,
+  }) {
+    return Metadata(
+      projectName: projectName ?? this.projectName,
+      author: author ?? this.author,
+      license: license ?? this.license,
+      projectLabels: projectLabels ?? [...this.projectLabels],
+    );
+  }
+}
+
+class BubbleViewConstraints {
+  late int saliencyClickLimit;
+  late double bubbleRadius;
+
+  BubbleViewConstraints({
+    this.bubbleRadius = 30,
+    this.saliencyClickLimit = 30,
+  });
+
+  BubbleViewConstraints copyWith({
+    int? saliencyClickLimit,
+    double? bubbleRadius,
+  }) {
+    return BubbleViewConstraints(
+      saliencyClickLimit: saliencyClickLimit ?? this.saliencyClickLimit,
+      bubbleRadius: bubbleRadius ?? this.bubbleRadius,
+    );
+  }
 }
 
 class Project {
-  late String path;
-  late String name;
+  late final Metadata metaData;
+  late Dataset dataset;
+  late BubbleViewConstraints bubbleViewConstraints;
 
-  int saliencyClickLimit = 30;
-  double bubbleRadius = 50;
-  double blurAmount = 10;
-
-  late final Database database;
-
-  final List<Label> labels = [];
-  final List<AnnotationData> annotations = [];
-
-  Project({String? name}) {
-    this.name = name ?? "undefined";
+  Project({
+    Metadata? metaData,
+    Dataset? dataset,
+    BubbleViewConstraints? bubbleViewConstraints,
+  }) {
+    this.metaData = metaData ?? Metadata();
+    this.dataset = dataset ?? Dataset();
+    this.bubbleViewConstraints =
+        bubbleViewConstraints ?? BubbleViewConstraints();
   }
 
-  void update(AnnotationData annotationData) {
-    final index = annotations.indexWhere((e) => e.id == annotationData.id);
-    if (index != -1) {
-      annotations[index] = annotationData;
+  Project.fromImages(List<File> images) {
+    if (images.isEmpty) {
+      dataset = Dataset();
       return;
     }
 
-    annotations.add(annotationData);
+    List<Annotation> annotations = images.map((image) {
+      int id = images.indexOf(image);
+      return Annotation(
+        id: id,
+        image: image,
+      );
+    }).toList();
+
+    dataset = Dataset(annotations: annotations);
   }
 
-  void createAnnotation({required File image}) {
-    final newId = annotations.isEmpty
-        ? 1
-        : annotations.map((e) => e.id).reduce((a, b) => a > b ? a : b) + 1;
+  Project.fromMap({
+    Map<String, Object>? metadata,
+    Map<String, Object>? bubbleViewConstraints,
+    Map<String, Object>? dataset,
+  });
 
-    final annotationData = AnnotationData(image: image, id: newId);
-    annotations.add(annotationData);
+  List<Map<String, Object>> toMap() {
+    return [];
   }
 
-  void setBlurAmount(double amount) {
-    if (amount.isNegative) return;
-    blurAmount = amount;
-  }
-
-  void addLabel(String name) {
-    final id = labels.length + 1;
-    labels.add(Label(id: id, name: name));
-  }
-
-  void setBubbleRadius(double radius) {
-    if (radius.isNegative) return;
-    bubbleRadius = radius;
-  }
-
-  void removeLabelAt(int id) {
-    labels.removeWhere((label) => label.id == id);
+  Project copyWith({
+    Metadata? metaData,
+    Dataset? dataset,
+    BubbleViewConstraints? bubbleViewConstraints,
+  }) {
+    return Project(
+      metaData: metaData ?? this.metaData,
+      dataset: dataset ?? this.dataset,
+      bubbleViewConstraints:
+          bubbleViewConstraints ?? this.bubbleViewConstraints,
+    );
   }
 }
