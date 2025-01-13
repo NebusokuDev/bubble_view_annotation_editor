@@ -1,6 +1,6 @@
+import 'package:bubble_view_annotation_editor/components/tap_shield.dart';
 import 'package:bubble_view_annotation_editor/core/annotations.dart';
 import 'package:bubble_view_annotation_editor/features/editor/editor_state.dart';
-import 'package:bubble_view_annotation_editor/features/editor/folder_tile.dart';
 import 'package:bubble_view_annotation_editor/features/editor/project_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +21,8 @@ class Hierarchy extends ConsumerWidget {
       return AnnotationTile(
         annotationData: annotationData,
         selected: selected,
-        onSelection: () => ref.read(editorStateProvider.notifier).changeImageAt(index),
+        onSelection: () =>
+            ref.read(editorStateProvider.notifier).changeImageAt(index),
       );
     });
   }
@@ -33,40 +34,43 @@ class Hierarchy extends ConsumerWidget {
     final project = ref.watch(projectProvider);
 
     final annotations = project?.dataset.annotations;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: SizedBox(
-            height: 40,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: projectNotifier.pickImage,
-                  icon: Icon(FontAwesomeIcons.images),
-                ),
-                IconButton(
-                  onPressed: projectNotifier.pickFolder,
-                  icon: Icon(FontAwesomeIcons.folderPlus),
-                ),
-                IconButton(
-                  onPressed: () => projectNotifier
-                      .deleteImage(editorState.currentImageIndex),
-                  icon: Icon(FontAwesomeIcons.trash),
-                ),
-              ],
+    return TapShield(
+      allowTap: project != null,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: SizedBox(
+              height: 40,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: projectNotifier.pickImage,
+                    icon: Icon(FontAwesomeIcons.images),
+                  ),
+                  IconButton(
+                    onPressed: projectNotifier.pickFolder,
+                    icon: Icon(FontAwesomeIcons.folderPlus),
+                  ),
+                  IconButton(
+                    onPressed: () => projectNotifier
+                        .deleteImage(editorState.currentImageIndex),
+                    icon: Icon(FontAwesomeIcons.trash),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: Container(
-            color: Colors.black12,
-            child: ListView(
-              children: generateLayerList(annotations, ref),
+          Expanded(
+            child: Container(
+              color: Colors.black12,
+              child: ListView(
+                children: generateLayerList(annotations, ref),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -106,7 +110,7 @@ class AnnotationTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final style = Theme.of(context).textTheme;
 
-    return FolderTile(
+    return ListTile(
       selected: selected,
       selectedColor: colorScheme.primary,
       selectedTileColor: colorScheme.primaryContainer,
@@ -118,7 +122,6 @@ class AnnotationTile extends StatelessWidget {
           color: selected ? colorScheme.primary : null,
         ),
       ),
-      children: buildAnnotationList(),
     );
   }
 }

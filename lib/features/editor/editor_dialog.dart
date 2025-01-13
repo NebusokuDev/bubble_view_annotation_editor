@@ -2,6 +2,39 @@ import 'package:bubble_view_annotation_editor/features/editor/project_notifier.d
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+class ProjectNameEditingDialog extends ConsumerWidget {
+  const ProjectNameEditingDialog({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(
+      text: ref.watch(projectProvider)?.metaData.projectName,
+    );
+
+    return AlertDialog(
+      title: Text("プロジェクト名を編集する"),
+      content: TextField(
+        controller: controller,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text("キャンセル"),
+        ),
+        FilledButton(
+          onPressed: () {
+            ref
+                .read(projectProvider.notifier)
+                .changeProjectName(controller.text);
+            Navigator.of(context).pop();
+          },
+          child: const Text("変更"),
+        ),
+      ],
+    );
+  }
+}
+
 class ProjectOverwriteDialog extends StatelessWidget {
   final VoidCallback onConfirm;
 
@@ -32,15 +65,31 @@ class ProjectOverwriteDialog extends StatelessWidget {
   }
 }
 
-class ProjectCreateDialog extends StatelessWidget {
-  final ValueChanged<String?> onCreate;
+class ProjectCreateDialogResult {
+  final String projectName;
+  final List<String> labels;
+
+  ProjectCreateDialogResult({required this.projectName, required this.labels});
+}
+
+class ProjectCreateDialog extends StatefulWidget {
+  final ValueChanged<ProjectCreateDialogResult?> onCreate;
 
   const ProjectCreateDialog({super.key, required this.onCreate});
 
   @override
+  State<ProjectCreateDialog> createState() => _ProjectCreateDialogState();
+}
+
+class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
+  final nameController = TextEditingController(text: "名称未設定のプロジェクト");
+  final labelController = TextEditingController();
+  final List<String> _labels = [];
+
+  @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme;
-    final nameController = TextEditingController(text: "名称未設定のプロジェクト");
+
     return Dialog(
       shape: ContinuousRectangleBorder(
         borderRadius: BorderRadius.circular(10 * 2.3529),
@@ -62,57 +111,77 @@ class ProjectCreateDialog extends StatelessWidget {
               Spacer(),
               Expanded(
                 flex: 5,
-                child: Column(
-                  spacing: 20,
-                  children: [
-                    ListTile(
-                      title: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text("プロジェクト名"),
-                      ),
-                      subtitle: TextField(
-                        controller: nameController,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: "My New Project",
-                          suffixIcon: IconButton(
-                            onPressed: () => nameController.text = "",
-                            icon: Icon(Icons.clear),
+                child: SingleChildScrollView(
+                  child: Column(
+                    spacing: 20,
+                    children: [
+                      ListTile(
+                        title: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text("プロジェクト名"),
+                        ),
+                        subtitle: TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: "My New Project",
+                            suffixIcon: IconButton(
+                              onPressed: () => nameController.text = "",
+                              icon: Icon(Icons.clear),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    ListTile(
-                      title: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text("ラベルを追加"),
-                      ),
-                      subtitle: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: TextField(
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                hintText: "monkey",
-                                suffixIcon: IconButton(
-                                  onPressed: () {},
-                                  icon: Icon(Icons.new_label),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ExpansionTile(
+                          title: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text("ラベルを追加"),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: TextField(
+                                controller: labelController,
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  hintText: "(例) monkey",
+                                  suffixIcon: IconButton(
+                                    onPressed: () {
+                                      if (labelController.text.isEmpty) return;
+                                      setState(() {
+                                        _labels.add(labelController.text);
+                                        labelController.clear();
+                                      });
+                                    },
+                                    icon: Icon(Icons.new_label),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ExpansionTile(
-                              title: Text("ラベル"),
-                            ),
-                          ),
-                        ],
+                            ..._labels.asMap().entries.map(
+                                  (e) => ListTile(
+                                    leading: CircleAvatar(),
+                                    title: Text(e.value),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          onPressed: () => setState(() {
+                                            _labels.removeAt(e.key);
+                                          }),
+                                          icon: Icon(Icons.delete),
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                )
+                          ],
+                        ),
                       ),
-                    )
-                  ],
+                    ],
+                  ),
                 ),
               ),
               Spacer(),
@@ -126,8 +195,10 @@ class ProjectCreateDialog extends StatelessWidget {
                   ),
                   FilledButton(
                     onPressed: () {
-                      Navigator.of(context).pop(nameController.text);
-                      onCreate(nameController.text);
+                      final result = ProjectCreateDialogResult(
+                          projectName: nameController.text, labels: _labels);
+                      Navigator.of(context).pop(result);
+                      widget.onCreate(result);
                     },
                     child: const Text("作成"),
                   ),
@@ -139,6 +210,17 @@ class ProjectCreateDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<ProjectCreateDialogResult?> showProjectCreateDialog(
+    BuildContext context) async {
+  final result = await showDialog<ProjectCreateDialogResult>(
+    context: context,
+    builder: (context) => ProjectCreateDialog(
+      onCreate: (_) {},
+    ),
+  );
+  return result;
 }
 
 Future<void> createNewProject(BuildContext context, WidgetRef ref) async {
@@ -156,14 +238,11 @@ Future<void> createNewProject(BuildContext context, WidgetRef ref) async {
   }
 
   // プロジェクト名入力ダイアログ
-  final projectName = await showDialog<String>(
-    context: context,
-    builder: (context) => ProjectCreateDialog(onCreate: (_) {}),
-  );
+  final result = await showProjectCreateDialog(context);
 
   // ユーザーがキャンセルした場合
-  if (projectName == null || projectName.isEmpty) return;
+  if (result == null || result.projectName.isEmpty) return;
 
   // プロジェクトの作成処理を実行
-  ref.read(projectProvider.notifier).createProject(name: projectName);
+  ref.read(projectProvider.notifier).createProject(name: result.projectName);
 }

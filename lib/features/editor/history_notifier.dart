@@ -1,28 +1,35 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:undo/undo.dart';
 
-class HistoryNotifier extends ChangeNotifier {
-  final ChangeStack _history = ChangeStack();
+class HistoryNotifier extends StateNotifier<ChangeStack> {
+  HistoryNotifier(super.state);
 
-  bool get canRedo => _history.canRedo;
+  ChangeStack _history = ChangeStack();
 
-  bool get canUndo => _history.canUndo;
+  bool get canRedo => state.canRedo;
+
+  bool get canUndo => state.canUndo;
 
   void redo() {
     _history.redo();
-    notifyListeners();
+    state = _history;
   }
 
   void undo() {
     _history.undo();
-    notifyListeners();
+    state = _history;
   }
 
   void addChange(Change change) {
     _history.add(change);
-    notifyListeners();
+    state = _history;
+  }
+
+  void clear() {
+    _history = ChangeStack();
+    state = _history;
   }
 }
 
-final historyProvider = ChangeNotifierProvider((ref) => HistoryNotifier());
+final historyProvider = StateNotifierProvider<HistoryNotifier, ChangeStack>(
+    (ref) => HistoryNotifier(ChangeStack()));

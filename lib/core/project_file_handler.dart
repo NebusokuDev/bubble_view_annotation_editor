@@ -1,4 +1,5 @@
 import 'package:bubble_view_annotation_editor/core/annotations.dart';
+import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 
 abstract class ProjectFileHandler {
@@ -8,19 +9,23 @@ abstract class ProjectFileHandler {
 }
 
 class SQLiteProjectFileHandler implements ProjectFileHandler {
-  Future<Database> _openDatabase(String path) async {
-    return await openDatabase(path, onCreate: (db, version) async {});
+  @override
+  Future<Project> open(String path) async {
+    final db = await openProjectDatabase(path);
+
+    return Project.fromMap();
   }
 
   @override
-  Future<Project> open(String path) {
-    // TODO: implement open
-    throw UnimplementedError();
+  Future<void> save(Project project, String path) async {
+    final db = await openProjectDatabase(path);
   }
+}
 
-  @override
-  Future<void> save(Project project, String path) {
-    // TODO: implement save
-    throw UnimplementedError();
-  }
+Future<Database> openProjectDatabase(String path) async {
+  return await openDatabase(path, onCreate: (db, version) async {
+    final sql = await rootBundle.loadString("assets/sql/create_table.sql");
+
+    db.execute(sql);
+  });
 }

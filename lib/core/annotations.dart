@@ -36,12 +36,27 @@ class Annotation {
       bounds: bounds ?? [...this.bounds],
     );
   }
+
+  Annotation deepCopy() {
+    return Annotation(
+      id: id,
+      image: image,
+      keyPoints: keyPoints.map((kp) => kp.deepCopy()).toList(),
+      clickPoints: clickPoints.map((cp) => cp.deepCopy()).toList(),
+      imageLabels: imageLabels.map((il) => il.deepCopy()).toList(),
+      bounds: bounds.map((b) => b.deepCopy()).toList(),
+    );
+  }
 }
 
 class Dataset {
   List<Annotation> annotations;
 
   Dataset({this.annotations = const []});
+
+  Dataset deepCopy() {
+    return Dataset(annotations: annotations.map((a) => a.deepCopy()).toList());
+  }
 
   bool get isEmpty => annotations.isEmpty;
 }
@@ -84,6 +99,14 @@ class KeyPoint {
       bodyPart: bodyPart ?? this.bodyPart,
     );
   }
+
+  KeyPoint deepCopy() {
+    return KeyPoint(
+      id: id,
+      position: position,
+      bodyPart: bodyPart,
+    );
+  }
 }
 
 class ClickPoint {
@@ -104,6 +127,14 @@ class ClickPoint {
       radius: radius ?? this.radius,
     );
   }
+
+  ClickPoint deepCopy() {
+    return ClickPoint(
+      id: id,
+      position: position,
+      radius: radius,
+    );
+  }
 }
 
 class Label {
@@ -119,6 +150,13 @@ class Label {
     return Label(
       id: id ?? this.id,
       name: name ?? this.name,
+    );
+  }
+
+  Label deepCopy() {
+    return Label(
+      id: id,
+      name: name,
     );
   }
 }
@@ -139,6 +177,14 @@ class Bound {
       id: id ?? this.id,
       path: path ?? [...this.path],
       label: label ?? this.label,
+    );
+  }
+
+  Bound deepCopy() {
+    return Bound(
+      id: id,
+      path: [...path],
+      label: label?.deepCopy(),
     );
   }
 }
@@ -169,16 +215,27 @@ class Metadata {
       projectLabels: projectLabels ?? [...this.projectLabels],
     );
   }
+
+  Metadata deepCopy() {
+    return Metadata(
+      projectName: projectName,
+      author: author,
+      license: license,
+      projectLabels: projectLabels.map((pl) => pl.deepCopy()).toList(),
+    );
+  }
 }
 
 class BubbleViewConstraints {
-  late int saliencyClickLimit;
-  late double bubbleRadius;
+    int saliencyClickLimit;
+    double bubbleRadius;
+    double blurAmount;
 
-  BubbleViewConstraints({
-    this.bubbleRadius = 30,
-    this.saliencyClickLimit = 30,
-  });
+    BubbleViewConstraints({
+        this.bubbleRadius = 30,
+        this.saliencyClickLimit = 30,
+        this.blurAmount = 10,
+    });
 
   BubbleViewConstraints copyWith({
     int? saliencyClickLimit,
@@ -187,6 +244,13 @@ class BubbleViewConstraints {
     return BubbleViewConstraints(
       saliencyClickLimit: saliencyClickLimit ?? this.saliencyClickLimit,
       bubbleRadius: bubbleRadius ?? this.bubbleRadius,
+    );
+  }
+
+  BubbleViewConstraints deepCopy() {
+    return BubbleViewConstraints(
+      saliencyClickLimit: saliencyClickLimit,
+      bubbleRadius: bubbleRadius,
     );
   }
 }
@@ -244,6 +308,14 @@ class Project {
       dataset: dataset ?? this.dataset,
       bubbleViewConstraints:
           bubbleViewConstraints ?? this.bubbleViewConstraints,
+    );
+  }
+
+  Project deepCopy() {
+    return Project(
+      metaData: metaData.deepCopy(),
+      dataset: dataset.deepCopy(),
+      bubbleViewConstraints: bubbleViewConstraints.deepCopy(),
     );
   }
 }

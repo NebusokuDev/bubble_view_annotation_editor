@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:bubble_view_annotation_editor/core/annotations.dart';
 import 'package:bubble_view_annotation_editor/core/project_file_handler.dart';
+import 'package:bubble_view_annotation_editor/features/editor/history_notifier.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:undo/undo.dart';
 
 class ProjectNotifier extends StateNotifier<Project?> {
   ProjectNotifier(super.state, this.ref);
@@ -15,6 +17,7 @@ class ProjectNotifier extends StateNotifier<Project?> {
 
   void createProject({String name = "undefined"}) {
     state = Project(metaData: Metadata(projectName: name));
+    ref.read(historyProvider).clear();
   }
 
   Future openProject() async {
@@ -45,17 +48,13 @@ class ProjectNotifier extends StateNotifier<Project?> {
 
     final dir = Directory(selectedDirectory);
 
-    addAnnotations(dir
+    final images = dir
         .listSync()
         .where((item) => item is File && isImageFile(item.path))
         .map((item) => File(item.path))
-        .toList());
-  }
+        .toList();
 
-  bool isImageFile(String path) {
-    final extensions = ['jpg', 'jpeg', 'png', 'bmp', 'gif'];
-    final ext = path.split('.').last.toLowerCase();
-    return extensions.contains(ext);
+    addAnnotations(images);
   }
 
   Future<void> pickImage() async {
@@ -69,18 +68,32 @@ class ProjectNotifier extends StateNotifier<Project?> {
   }
 
   void addAnnotations(List<File>? newImages) {
+    final dataset = state?.dataset;
     if (newImages == null) return;
-
+    if (dataset == null) return;
     for (final image in newImages) {
-      state?.dataset;
+      final id = dataset.annotations.isEmpty ? 1 : dataset.annotations.last.id;
+      final annotation = Annotation(id: id, image: image);
+      state?.dataset.annotations = [...dataset.annotations, annotation];
     }
+
+    ref.read(historyProvider.notifier).addChange(
+          Change(
+            state?.deepCopy(),
+            () => state = state?.copyWith(dataset: dataset),
+            (oldValue) => state = oldValue?.deepCopy(),
+          ),
+        );
   }
 
   void deleteImage(int index) {
     if (state == null) return;
+    final dataset = state?.dataset;
+    if (dataset?.annotations == null || dataset!.annotations.isEmpty) return;
     if (index >= 0 && index < state!.dataset.annotations.length) {
-      state?.dataset.annotations.removeAt(index);
+      dataset.annotations.removeAt(index);
     }
+    state = state?.copyWith(dataset: dataset);
   }
 
   void addImageLabels(Label label, int index) {
@@ -90,31 +103,75 @@ class ProjectNotifier extends StateNotifier<Project?> {
   void addProjectLabels(String label) {
     if (state == null) return;
 
-    final projectLabels = state!.metaData.projectLabels;
-    projectLabels.sort((a, b) => a.id.compareTo(b.id));
+    final metadata = state!.metaData;
 
-    final newId = projectLabels.isEmpty ? 1 : projectLabels.last.id + 1;
-    state = state?.copyWith(
-        metaData: state?.metaData.copyWith(projectLabels: projectLabels));
+    final newId =
+        metadata.projectLabels.isEmpty ? 1 : metadata.projectLabels.last.id + 1;
+
+    metadata.projectLabels = [
+      ...metadata.projectLabels,
+      Label(id: newId, name: label)
+    ];
+    state = state?.copyWith(metaData: metadata);
   }
 
-  void addSaliencyPoint(TapDownDetails details, int index) {
-    final data = state?.dataset.annotations[index];
+  void removeProjectLabels(int index) {
+    if (state == null) return;
 
-    if (data == null) return;
+    final metaData = state!.metaData;
+    final projectLabels = metaData.projectLabels;
+    projectLabels.removeAt(index);
+    metaData.projectLabels = [...projectLabels];
+    state = state?.copyWith(metaData: metaData);
+  }
 
-    if (data.clickPoints.length >
-        (state?.bubbleViewConstraints.saliencyClickLimit ?? 30)) {
-      return;
-    }
+  void addClickPoint(TapDownDetails details, int index) {
+    final dataset = state?.dataset;
+    final constraints = state?.bubbleViewConstraints;
+
+    if (dataset == null) return;
+    final annotations = dataset.annotations;
+    final newId = annotations.isEmpty ? 1 : annotations.last.id + 1;
+
+    final clickPoints = annotations[index].clickPoints;
+    annotations[index].clickPoints = [
+      ...clickPoints,
+      ClickPoint(
+          id: newId,
+          position: details.localPosition,
+          radius: constraints!.bubbleRadius)
+    ];
+    dataset.annotations = [...annotations];
+    state = state?.copyWith(dataset: dataset);
   }
 
   void changeBubbleRadius(double value) {
-    state?.bubbleViewConstraints.bubbleRadius = value;
+    final constraints = state?.bubbleViewConstraints;
+    if (constraints == null) return;
+    constraints.bubbleRadius = value;
+    state = state?.copyWith(bubbleViewConstraints: constraints);
   }
 
   void changeBubbleClickCount(int value) {
-    state?.bubbleViewConstraints.saliencyClickLimit = value;
+    final constraints = state?.bubbleViewConstraints;
+    if (constraints == null) return;
+    constraints.saliencyClickLimit = value;
+    state = state?.copyWith(bubbleViewConstraints: constraints);
+  }
+
+  void changeBlurAmount(double value) {
+    final constraints = state?.bubbleViewConstraints;
+    if (constraints == null) return;
+    constraints.blurAmount = value;
+    state = state?.copyWith(bubbleViewConstraints: constraints);
+  }
+
+  void changeProjectName(String text) {
+    final metadata = state?.metaData;
+    if (metadata == null) return;
+
+    metadata.projectName = text;
+    state = state?.copyWith(metaData: metadata);
   }
 }
 

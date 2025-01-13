@@ -6,7 +6,10 @@ class SettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-        onPressed: () => context.go("/settings"), icon: Icon(Icons.settings));
+    return Tooltip(
+      message: "設定画面",
+      child: IconButton(
+          onPressed: () => context.go("/settings"), icon: Icon(Icons.settings)),
+    );
   }
 }

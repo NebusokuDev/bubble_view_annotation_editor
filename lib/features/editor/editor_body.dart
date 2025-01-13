@@ -75,7 +75,7 @@ class BubbleViewCanvas extends ConsumerWidget {
     final dataset = ref.watch(projectProvider)!.dataset;
     final constraints = ref.watch(projectProvider)!.bubbleViewConstraints;
     final currentIndex =
-        ref.watch(editorStateProvider.notifier).currentImageIndex;
+        ref.watch(editorStateProvider).currentImageIndex;
     final editorState = ref.watch(editorStateProvider);
 
     return Container(
@@ -99,7 +99,7 @@ class BubbleViewCanvas extends ConsumerWidget {
                   child: BubbleView(
                     image: dataset.annotations[currentIndex].image,
                     onTapDown: (details) =>
-                        ref.read(projectProvider.notifier).addSaliencyPoint(
+                        ref.read(projectProvider.notifier).addClickPoint(
                               details,
                               currentIndex,
                             ),
@@ -110,7 +110,7 @@ class BubbleViewCanvas extends ConsumerWidget {
                             : null,
                     enableBlur: editorState.enableBlur,
                     bubbleRadius: constraints.bubbleRadius,
-                    blurAmount: 5.0,
+                    blurAmount: constraints.blurAmount,
                   ),
                 ),
                 Flexible(

@@ -8,12 +8,12 @@ class EditorState {
 
   EditorState copyWith({
     int? currentImageIndex,
-    int? toolSelectionIndex,
+    int? currentToolIndex,
     bool? enableBlur,
   }) {
     return EditorState()
       ..currentImageIndex = currentImageIndex ?? this.currentImageIndex
-      ..currentToolIndex = toolSelectionIndex ?? this.currentToolIndex
+      ..currentToolIndex = currentToolIndex ?? this.currentToolIndex
       ..enableBlur = enableBlur ?? this.enableBlur;
   }
 }
@@ -22,15 +22,6 @@ class EditorStateNotifier extends StateNotifier<EditorState> {
   EditorStateNotifier(super.state, this.ref);
 
   Ref ref;
-
-  int get currentImageIndex {
-    final project = ref.watch(projectProvider);
-    final length = project?.dataset.annotations.length ?? 0;
-    if (state.currentImageIndex >= length) {
-      state = state.copyWith(currentImageIndex: length - 1);
-    }
-    return state.currentImageIndex;
-  }
 
   void changeImageAt(int index) {
     final project = ref.watch(projectProvider);
@@ -63,12 +54,7 @@ class EditorStateNotifier extends StateNotifier<EditorState> {
   }
 
   void selectTool(int index) {
-    state = state.copyWith(toolSelectionIndex: index);
-  }
-
-  @override
-  EditorState build() {
-    return EditorState();
+    state = state.copyWith(currentToolIndex: index);
   }
 }
 
