@@ -40,7 +40,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 SwitchListTile(
                   title: Text("インスペクタータイルをデフォルトで開いた状態に設定"),
-                  value: ref.watch(settingsProvider).initialTileOpen,
+                  value: ref.watch(settingsProvider).initialTileExpanded,
                   onChanged: ref.read(settingsProvider).toggleInitialTileOpen,
                 )
               ],

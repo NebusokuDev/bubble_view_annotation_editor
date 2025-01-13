@@ -5,10 +5,10 @@ class RangeSelection extends StatefulWidget {
   final void Function(Rect bounds) onBoundsChanged; // バウンディングボックス範囲のコールバック
 
   const RangeSelection({
-    Key? key,
+    super.key,
     required this.child,
     required this.onBoundsChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<RangeSelection> createState() => _RangeSelectionState();

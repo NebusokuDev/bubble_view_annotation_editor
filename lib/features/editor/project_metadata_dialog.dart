@@ -209,21 +209,21 @@ class BubbleViewTile extends ConsumerWidget {
         ListTile(
           title: Text("最大クリック回数"),
           trailing: Text(
-              (project?.bubbleViewConstraints.saliencyClickLimit.round() ?? 30)
+              (project?.bubbleViewConstraints.clickLimit.round() ?? 30)
                   .toStringAsFixed(0)),
           subtitle: Slider(
-            label: (project?.bubbleViewConstraints.saliencyClickLimit
+            label: (project?.bubbleViewConstraints.clickLimit
                         .clamp(10, 200)
                         .round() ??
                     30)
                 .toStringAsFixed(0),
-            value: project?.bubbleViewConstraints.saliencyClickLimit
+            value: project?.bubbleViewConstraints.clickLimit
                     .clamp(10, 200)
                     .toDouble() ??
                 30.0,
             onChanged: (value) => ref
                 .read(projectProvider.notifier)
-                .changeBubbleClickCount(value.round()),
+                .changeBubbleClickCountLimit(value.round()),
             min: 10,
             max: 200,
           ),

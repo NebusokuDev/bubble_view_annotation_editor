@@ -1,3 +1,4 @@
+import 'package:bubble_view_annotation_editor/core/annotations.dart';
 import 'package:bubble_view_annotation_editor/features/editor/project_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,13 +68,19 @@ class ProjectOverwriteDialog extends StatelessWidget {
 
 class ProjectCreateDialogResult {
   final String projectName;
+  final String author;
+  final String licence;
   final List<String> labels;
 
-  ProjectCreateDialogResult({required this.projectName, required this.labels});
+  ProjectCreateDialogResult(
+      {required this.author,
+      required this.licence,
+      required this.projectName,
+      required this.labels});
 }
 
 class ProjectCreateDialog extends StatefulWidget {
-  final ValueChanged<ProjectCreateDialogResult?> onCreate;
+  final ValueChanged<Metadata> onCreate;
 
   const ProjectCreateDialog({super.key, required this.onCreate});
 
@@ -84,6 +91,8 @@ class ProjectCreateDialog extends StatefulWidget {
 class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
   final nameController = TextEditingController(text: "名称未設定のプロジェクト");
   final labelController = TextEditingController();
+  final authorController = TextEditingController();
+  final licenceController = TextEditingController(text: "MIT");
   final List<String> _labels = [];
 
   @override
@@ -103,12 +112,12 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
             horizontal: 32,
           ),
           child: Column(
+            spacing: 20,
             children: [
               Text(
                 "新しいプロジェクト",
                 style: style.headlineSmall,
               ),
-              Spacer(),
               Expanded(
                 flex: 5,
                 child: SingleChildScrollView(
@@ -127,6 +136,34 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                             hintText: "My New Project",
                             suffixIcon: IconButton(
                               onPressed: () => nameController.text = "",
+                              icon: Icon(Icons.clear),
+                            ),
+                          ),
+                        ),
+                      ),
+                      ListTile(
+                        title: Text("作者"),
+                        subtitle: TextField(
+                          controller: authorController,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: "Your name",
+                            suffixIcon: IconButton(
+                              onPressed: () => authorController.clear(),
+                              icon: Icon(Icons.clear),
+                            ),
+                          ),
+                        ),
+                      ),
+                      ListTile(
+                        title: Text("ライセンス"),
+                        subtitle: TextField(
+                          controller: licenceController,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: "(例) MIT",
+                            suffixIcon: IconButton(
+                              onPressed: () => licenceController.clear(),
                               icon: Icon(Icons.clear),
                             ),
                           ),
@@ -184,7 +221,6 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                   ),
                 ),
               ),
-              Spacer(),
               Row(
                 spacing: 10,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -195,8 +231,14 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                   ),
                   FilledButton(
                     onPressed: () {
-                      final result = ProjectCreateDialogResult(
-                          projectName: nameController.text, labels: _labels);
+                      final result = Metadata.fromLabelsList(
+                        _labels,
+                        projectName: nameController.text,
+                        author: authorController.text,
+                        license: licenceController.text.isEmpty
+                            ? "proprietary"
+                            : licenceController.text,
+                      );
                       Navigator.of(context).pop(result);
                       widget.onCreate(result);
                     },
@@ -212,9 +254,8 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
   }
 }
 
-Future<ProjectCreateDialogResult?> showProjectCreateDialog(
-    BuildContext context) async {
-  final result = await showDialog<ProjectCreateDialogResult>(
+Future<Metadata?> showProjectCreateDialog(BuildContext context) async {
+  final result = await showDialog<Metadata>(
     context: context,
     builder: (context) => ProjectCreateDialog(
       onCreate: (_) {},
@@ -244,5 +285,5 @@ Future<void> createNewProject(BuildContext context, WidgetRef ref) async {
   if (result == null || result.projectName.isEmpty) return;
 
   // プロジェクトの作成処理を実行
-  ref.read(projectProvider.notifier).createProject(name: result.projectName);
+  ref.read(projectProvider.notifier).createProject(result);
 }

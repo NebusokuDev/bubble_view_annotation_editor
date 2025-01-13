@@ -59,8 +59,6 @@ class EditorAppBar extends ConsumerWidget implements PreferredSizeWidget {
                           ref.read(projectProvider.notifier).saveProject(),
                   icon: Icon(FontAwesomeIcons.floppyDisk)),
             ),
-          ],
-          centerActions: [
             Tooltip(
               message: "メタデータの設定",
               child: IconButton(

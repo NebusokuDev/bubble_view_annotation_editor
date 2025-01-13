@@ -25,18 +25,13 @@ class EditorStateNotifier extends StateNotifier<EditorState> {
 
   void changeImageAt(int index) {
     final project = ref.watch(projectProvider);
-    if (project == null ||
-        index < 0 ||
-        index >= project.dataset.annotations.length) {
-      return;
-    }
     state = state.copyWith(currentImageIndex: index);
   }
 
   void nextImage() {
     final project = ref.watch(projectProvider);
     if (project == null) return;
-    final length = project.dataset.annotations.length;
+    final length = project.annotations.length;
     final nextIndex = (state.currentImageIndex + 1) % length;
     changeImageAt(nextIndex);
   }
@@ -44,7 +39,7 @@ class EditorStateNotifier extends StateNotifier<EditorState> {
   void previousImage() {
     final project = ref.watch(projectProvider);
     if (project == null) return;
-    final length = project.dataset.annotations.length;
+    final length = project.annotations.length;
     final prevIndex = (state.currentImageIndex - 1 + length) % length;
     changeImageAt(prevIndex);
   }

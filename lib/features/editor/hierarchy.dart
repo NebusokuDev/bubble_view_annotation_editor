@@ -33,7 +33,7 @@ class Hierarchy extends ConsumerWidget {
     final editorState = ref.watch(editorStateProvider);
     final project = ref.watch(projectProvider);
 
-    final annotations = project?.dataset.annotations;
+    final annotations = project?.annotations;
     return TapShield(
       allowTap: project != null,
       child: Column(
@@ -115,7 +115,6 @@ class AnnotationTile extends StatelessWidget {
       selectedColor: colorScheme.primary,
       selectedTileColor: colorScheme.primaryContainer,
       onTap: onSelection,
-      // key: PageStorageKey(index),
       title: Text(
         basename(annotationData.image.path),
         style: style.labelMedium?.copyWith(

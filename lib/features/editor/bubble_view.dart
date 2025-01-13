@@ -31,7 +31,9 @@ class BubbleView extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       width: targetImage.width,
       height: targetImage.height,
-      decoration: BoxDecoration(shape: BoxShape.rectangle),
+      decoration: BoxDecoration(
+        shape: BoxShape.rectangle,
+      ),
       child: Stack(
         fit: StackFit.passthrough,
         clipBehavior: Clip.antiAlias,

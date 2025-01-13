@@ -21,9 +21,9 @@ class SettingsNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get initialTileOpen => _forceTileOpen;
+  bool get initialTileExpanded => _forceTileOpen;
 
-  set initialTileOpen(bool value) {
+  set initialTileExpanded(bool value) {
     _forceTileOpen = value;
     notifyListeners();
   }
@@ -37,7 +37,7 @@ class SettingsNotifier extends ChangeNotifier {
   }
 
   void toggleInitialTileOpen(bool value) {
-    initialTileOpen = value;
+    initialTileExpanded = value;
     _saveForceTileOpen();
   }
 
@@ -54,12 +54,12 @@ class SettingsNotifier extends ChangeNotifier {
 
   Future<void> _loadForceTileOpen() async {
     final prefs = await SharedPreferences.getInstance();
-    initialTileOpen = prefs.getBool(PreferenceKeys.forceTileOpen.name) ?? false;
+    initialTileExpanded = prefs.getBool(PreferenceKeys.forceTileOpen.name) ?? false;
   }
 
   Future<void> _saveForceTileOpen() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(PreferenceKeys.forceTileOpen.name, initialTileOpen);
+    await prefs.setBool(PreferenceKeys.forceTileOpen.name, initialTileExpanded);
   }
 }
 

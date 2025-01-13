@@ -16,7 +16,7 @@ class EditorBody extends ConsumerWidget {
         child: Container(
           color: Colors.transparent,
           child: Center(
-            child: Text("画像がありません。画面をクリックするか、フォルダーボタンから画像を追加してください。"),
+            child: Text("画像がありません。画面をクリックするか、ヒエラルキーのボタンから画像を追加してください。"),
           ),
         ),
       ),
@@ -31,11 +31,41 @@ class EditorBody extends ConsumerWidget {
       return ProjectNotOpenCanvas();
     }
 
-    if (project.dataset.isEmpty) {
+    if (project.annotations.isEmpty) {
       return imageEmpty(context, ref);
     }
+    final currentIndex = ref.watch(editorStateProvider).currentImageIndex;
 
-    return BubbleViewCanvas();
+    return Container(
+      color: Colors.black12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Flexible(
+                  child: IconButton.outlined(
+                    onPressed:
+                        ref.read(editorStateProvider.notifier).previousImage,
+                    icon: Icon(Icons.arrow_left),
+                  ),
+                ),
+                BubbleViewCanvas(),
+                Flexible(
+                  child: IconButton.outlined(
+                    onPressed: ref.read(editorStateProvider.notifier).nextImage,
+                    icon: Icon(Icons.arrow_right),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text("${currentIndex + 1} / ${project.annotations.length}"),
+        ],
+      ),
+    );
   }
 }
 
@@ -72,58 +102,26 @@ class BubbleViewCanvas extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dataset = ref.watch(projectProvider)!.dataset;
+    final annotations = ref.watch(projectProvider)!.annotations;
     final constraints = ref.watch(projectProvider)!.bubbleViewConstraints;
-    final currentIndex =
-        ref.watch(editorStateProvider).currentImageIndex;
+    final currentIndex = ref.watch(editorStateProvider).currentImageIndex;
     final editorState = ref.watch(editorStateProvider);
-
-    return Container(
-      color: Colors.black12,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Flexible(
-                  child: IconButton.outlined(
-                    onPressed:
-                        ref.read(editorStateProvider.notifier).previousImage,
-                    icon: Icon(Icons.arrow_left),
-                  ),
-                ),
-                Expanded(
-                  flex: 12,
-                  child: BubbleView(
-                    image: dataset.annotations[currentIndex].image,
-                    onTapDown: (details) =>
-                        ref.read(projectProvider.notifier).addClickPoint(
-                              details,
-                              currentIndex,
-                            ),
-                    clipPos:
-                        dataset.annotations[currentIndex].clickPoints.isNotEmpty
-                            ? dataset.annotations[currentIndex].clickPoints.last
-                                .position
-                            : null,
-                    enableBlur: editorState.enableBlur,
-                    bubbleRadius: constraints.bubbleRadius,
-                    blurAmount: constraints.blurAmount,
-                  ),
-                ),
-                Flexible(
-                  child: IconButton.outlined(
-                    onPressed: ref.read(editorStateProvider.notifier).nextImage,
-                    icon: Icon(Icons.arrow_right),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text("${currentIndex + 1} / ${dataset.annotations.length}"),
-        ],
+    return Expanded(
+      flex: 12,
+      child: BubbleView(
+        image: annotations[currentIndex].image,
+        onTapDown: (details) {
+          ref.read(projectProvider.notifier).addClickPoint(
+                details,
+                currentIndex,
+              );
+        },
+        clipPos: annotations[currentIndex].clickPoints.isNotEmpty
+            ? annotations[currentIndex].clickPoints.last.position
+            : null,
+        enableBlur: editorState.enableBlur,
+        bubbleRadius: constraints.bubbleRadius,
+        blurAmount: constraints.blurAmount,
       ),
     );
   }
