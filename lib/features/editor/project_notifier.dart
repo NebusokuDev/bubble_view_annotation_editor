@@ -12,6 +12,8 @@ class ProjectNotifier extends StateNotifier<Project?> {
 
   File? _file;
 
+  final SQLiteProjectFileHandler projectFileHandler =
+      SQLiteProjectFileHandler();
   final Ref ref;
 
   bool get isProjectOpen => state != null;
@@ -22,7 +24,7 @@ class ProjectNotifier extends StateNotifier<Project?> {
     );
   }
 
-  Future openProject() async {
+  Future openProject({ProgressCallback? onProgress}) async {
     final selectFiles = await FilePicker.platform.pickFiles(
       allowedExtensions: ["anno", "sqlite"],
       type: FileType.custom,
@@ -31,7 +33,13 @@ class ProjectNotifier extends StateNotifier<Project?> {
     if (selectFiles == null) return;
 
     _file = File(selectFiles.files.single.path!);
-    state = await SQLiteProjectFileHandler().open(_file!.path);
+    state = await projectFileHandler.open(
+      _file!.path,
+      onProgress: (total, current, details) {
+        onProgress?.call(total, current, details);
+        debugPrint("[$current / $total]: $details");
+      },
+    );
   }
 
   Future<void> saveProject() async {

@@ -1,6 +1,7 @@
 import 'package:bubble_view_annotation_editor/components/settings_button.dart';
 import 'package:bubble_view_annotation_editor/features/editor/editor_dialog.dart';
 import 'package:bubble_view_annotation_editor/features/editor/history_notifier.dart';
+import 'package:bubble_view_annotation_editor/features/editor/progress_dialog.dart';
 import 'package:bubble_view_annotation_editor/features/editor/project_metadata_dialog.dart';
 import 'package:bubble_view_annotation_editor/features/editor/project_notifier.dart';
 import 'package:flutter/material.dart';
@@ -46,7 +47,19 @@ class EditorAppBar extends ConsumerWidget implements PreferredSizeWidget {
             Tooltip(
               message: "プロジェクトファイルを開く",
               child: IconButton(
-                onPressed: ref.read(projectProvider.notifier).openProject,
+                onPressed: () {
+                  final totalNotifier = ValueNotifier<double>(0);
+                  final currentNotifier = ValueNotifier<double>(0);
+                  final detailsNotifier = ValueNotifier<String>("");
+                  showProgressDialog(context, currentNotifier, totalNotifier);
+                  ref.read(projectProvider.notifier).openProject(
+                    onProgress: (total, current, details) {
+                      totalNotifier.value = total.toDouble();
+                      currentNotifier.value = current.toDouble();
+                      detailsNotifier.value = details ?? "";
+                    },
+                  );
+                },
                 icon: Icon(FontAwesomeIcons.folderOpen),
               ),
             ),

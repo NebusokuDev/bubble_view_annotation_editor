@@ -15,9 +15,6 @@ class ProjectMetadataEditingDialog extends ConsumerWidget {
     );
 
     return Dialog(
-      shape: ContinuousRectangleBorder(
-        borderRadius: BorderRadius.circular(10 * 2.3529),
-      ),
       child: SizedBox(
         width: 900,
         height: 600,
@@ -177,10 +174,10 @@ class BubbleViewTile extends ConsumerWidget {
                 .clamp(0, 200)
                 .toStringAsFixed(2),
             value: ref
-                .watch(projectProvider)
-                ?.bubbleViewConstraints
-                .blurAmount
-                .clamp(0, 200) ??
+                    .watch(projectProvider)
+                    ?.bubbleViewConstraints
+                    .blurAmount
+                    .clamp(0, 200) ??
                 5,
             onChanged: ref.read(projectProvider.notifier).changeBlurAmount,
             max: 200,

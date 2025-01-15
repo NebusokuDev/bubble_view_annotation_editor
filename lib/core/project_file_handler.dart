@@ -14,10 +14,14 @@ abstract class ProjectFileHandler {
   Future<void> save(Project project, String path);
 }
 
-class FileHandlerProgress {}
+typedef ProgressCallback = void Function(
+  int total,
+  int current,
+  String? details,
+);
 
 class SQLiteProjectFileHandler implements ProjectFileHandler {
-
+  const SQLiteProjectFileHandler();
 
   @override
   Future<void> save(Project project, String path) async {
@@ -108,7 +112,7 @@ class SQLiteProjectFileHandler implements ProjectFileHandler {
 
           // BoundingBox の保存
           for (final bound
-          in annotation.bounds.where((b) => b.label?.id == label.id)) {
+              in annotation.bounds.where((b) => b.label?.id == label.id)) {
             await txn.insert(
               'bounding_boxes',
               {
@@ -129,7 +133,8 @@ class SQLiteProjectFileHandler implements ProjectFileHandler {
   }
 
   @override
-  Future<Project> open(String projectFilePath) async {
+  Future<Project> open(String projectFilePath,
+      {ProgressCallback? onProgress}) async {
     final db = await openProjectDatabase(projectFilePath);
 
     // 一時ディレクトリの取得
@@ -164,19 +169,23 @@ class SQLiteProjectFileHandler implements ProjectFileHandler {
     }
 
     // メタデータの処理
-    final metaData = metadataRows.isNotEmpty
-        ? Metadata.fromMap(metadataRows.first)
-        : Metadata();
+    final metaData = _extractMetadata(metadataRows);
 
     // バブルビュー制約の処理
-    final bubbleViewConstraints = bubbleViewConstraintsRows.isNotEmpty
-        ? BubbleViewConstraints.fromMap(bubbleViewConstraintsRows.first)
-        : BubbleViewConstraints();
+    final bubbleViewConstraints =
+        _extractConstraints(bubbleViewConstraintsRows);
 
     // アノテーションの処理
     final annotationList = <Annotation>[];
-    for (final annotationRow in annotationRows) {
-      debugPrint(annotationRow.entries.length.toString());
+
+    final keyPoints = _extractKeyPoints(keyPointRows);
+    final clickPoints = _extractClickPoints(clickPointRows);
+    final bounds = _extractBounds(boundingBoxRows);
+    final imageLabels = _extractImageLabels(imageLabelRows);
+    final images = _extractImages(annotationRows, cacheDirectory);
+
+    for (int index = 0; index < annotationRows.length; index++) {
+      final annotationRow = annotationRows[index];
       final imageBytes = annotationRow["image"] as List<int>;
       final decodedImage = decodeImage(Uint8List.fromList(imageBytes));
 
@@ -184,36 +193,40 @@ class SQLiteProjectFileHandler implements ProjectFileHandler {
 
       final annotationId = annotationRow['id'] as int;
 
+      onProgress?.call(annotationRows.length, index + 1, "画像をエンコード...");
+
       final imageFile = File(join(cacheDirectory.path, "$annotationId.png"));
       imageFile.writeAsBytes(encodePng(decodedImage));
+
+      onProgress?.call(annotationRows.length, index + 1, "キーポイントを解析中...");
 
       final keyPointsForAnnotation = keyPointRows
           .where((row) => row['annotation_id'] == annotationId)
           .map((row) => KeyPoint.fromMap(row))
           .toList();
 
+      onProgress?.call(annotationRows.length, index + 1, "クリックポイントを解析中...");
+
       final clickPointsForAnnotation = clickPointRows
           .where((row) => row['annotation_id'] == annotationId)
-          .map((row) {
-        return ClickPoint(
-          id: row["id"] as int,
-          position: Offset(
-            row["x"] as double,
-            row["y"] as double,
-          ),
-          radius: row["radius"] as double,
-        );
-      }).toList();
+          .map((row) => ClickPoint.fromMap(row))
+          .toList();
+
+      onProgress?.call(annotationRows.length, index + 1, "画像ラベルを解析中...");
 
       final imageLabelsForAnnotation = imageLabelRows
           .where((row) => row['annotation_id'] == annotationId)
           .map((row) => Label.fromMap(row))
           .toList();
 
+      onProgress?.call(annotationRows.length, index + 1, "バウンディングボックスを解析中...");
+
       final boundsForAnnotation = boundingBoxRows
           .where((row) => row['annotation_id'] == annotationId)
           .map((row) => Bound.fromMap(row))
           .toList();
+
+      onProgress?.call(annotationRows.length, index + 1, "アノテーションを追加...");
 
       final annotation = Annotation(
         id: annotationId,
@@ -229,7 +242,7 @@ class SQLiteProjectFileHandler implements ProjectFileHandler {
 
     // プロジェクトラベルの処理
     final projectLabels =
-    projectLabelRows.map((row) => Label.fromMap(row)).toList();
+        projectLabelRows.map((row) => Label.fromMap(row)).toList();
 
     // プロジェクトの作成
     final loadedProject = Project(
@@ -239,6 +252,54 @@ class SQLiteProjectFileHandler implements ProjectFileHandler {
     );
 
     return loadedProject;
+  }
+
+  Metadata _extractMetadata(List<Map<String, dynamic>> maps) {
+    return maps.isNotEmpty ? Metadata.fromMap(maps.first) : Metadata();
+  }
+
+  BubbleViewConstraints _extractConstraints(List<Map<String, dynamic>> maps) {
+    return maps.isNotEmpty
+        ? BubbleViewConstraints.fromMap(maps.first)
+        : BubbleViewConstraints();
+  }
+
+  List<T> _extractList<T>(List<Map<String, dynamic>> rows,
+      T Function(Map<String, dynamic>) fromMap) {
+    return rows.map(fromMap).toList();
+  }
+
+  List<KeyPoint> _extractKeyPoints(List<Map<String, dynamic>> keyPointsMap) {
+    return _extractList(keyPointsMap, KeyPoint.fromMap);
+  }
+
+  List<ClickPoint> _extractClickPoints(List<Map<String, dynamic>> clickPoints) {
+    return _extractList(clickPoints, ClickPoint.fromMap);
+  }
+
+  List<Label> _extractImageLabels(List<Map<String, dynamic>> imageLabels) {
+    return _extractList(imageLabels, Label.fromMap);
+  }
+
+  List<Bound> _extractBounds(List<Map<String, dynamic>> bounds) {
+    return _extractList(bounds, Bound.fromMap);
+  }
+
+  List<Map<int, File>> _extractImages(
+    List<Map<String, dynamic>> annotationRow,
+    Directory cacheDirectory,
+  ) {
+    return [];
+    // final imageBytes = annotationRow["image"] as List<int>;
+    // final decodedImage = decodeImage(Uint8List.fromList(imageBytes));
+    //
+    // if (decodedImage == null) return null;
+    //
+    // final annotationId = annotationRow['id'] as int;
+    //
+    // final imageFile = File(join(cacheDirectory.path, "$annotationId.png"));
+    // imageFile.writeAsBytes(encodePng(decodedImage));
+    // return annotation;
   }
 }
 

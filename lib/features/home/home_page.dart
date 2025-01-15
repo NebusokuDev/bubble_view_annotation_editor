@@ -18,12 +18,7 @@ class HomePage extends ConsumerWidget {
 
     return Scaffold(
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 300),
-          child: ListView(
-            children: buildListContents(List.generate(10, (index) => index.toString())),
-          ),
-        ),
+        child: Center()
       ),
     );
   }

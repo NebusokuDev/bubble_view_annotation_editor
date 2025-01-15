@@ -212,14 +212,14 @@ class ClickPoint implements Comparable<ClickPoint> {
     };
   }
 
-  factory ClickPoint.fromMap(Map<String, dynamic>? map) {
+  factory ClickPoint.fromMap(Map<String, dynamic> map) {
     return ClickPoint(
-      id: map?['id'] as int,
+      id: map["id"] as int,
       position: Offset(
-        0,
-        0,
+        map["x"] as double,
+        map["y"] as double,
       ),
-      radius: map?['radius'] as double,
+      radius: map["radius"] as double,
     );
   }
 

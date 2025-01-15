@@ -44,9 +44,6 @@ class ProjectOverwriteDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: ContinuousRectangleBorder(
-        borderRadius: BorderRadius.circular(10 * 2.3529),
-      ),
       title: const Text("新しいプロジェクトを作成しますか？"),
       content: const Text("現在のプロジェクトは破棄されます。この操作を続行してもよろしいですか？"),
       actions: [
@@ -100,9 +97,6 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
     final style = Theme.of(context).textTheme;
 
     return Dialog(
-      shape: ContinuousRectangleBorder(
-        borderRadius: BorderRadius.circular(10 * 2.3529),
-      ),
       child: SizedBox(
         width: 900,
         height: 600,
